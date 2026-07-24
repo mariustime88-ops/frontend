@@ -1,0 +1,34 @@
+<app-admin-layout>
+  <div class="w-full px-2 sm:px-4 md:px-6">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <h1 class="font-bold text-lg text-gray-900">Départements</h1>
+    </div>
+    
+    <div class="card custom-width w-full overflow-x-auto shadow-sm rounded-lg bg-white p-2 sm:p-4">
+      <app-data-table
+        title="Liste des départements"
+        [data]="data"
+        [columns]="columns"
+        [loading]="loading"
+        [rows]="5"
+        [rowsPerPageOptions]="[5, 10, 25, 50]"
+        [showActions]="false"
+        [defaultPaginator]="false"
+        [hideView]="true"
+        [filters]="filter"
+      >
+      </app-data-table>
+      
+      <div class="flex justify-center my-4 overflow-x-auto">
+        <app-custom-pagination
+          [page]="filter.page"
+          [totalItems]="filter.total"
+          [limit]="filter.per_page"
+          (pageChange)="changePage($event)"
+        ></app-custom-pagination>
+      </div>
+    </div>
+  </div>
+</app-admin-layout>
+
+<p-toast></p-toast>

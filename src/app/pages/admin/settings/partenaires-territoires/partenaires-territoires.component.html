@@ -1,0 +1,20 @@
+<app-admin-layout title="Gestion des paramètres">
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h1 class="text-xl font-bold text-gray-900">Paramètres</h1>
+      <p class="text-gray-600 mt-1">Gestion des référentiels du système</p>
+    </div>
+  </div>
+
+  <app-tabs
+    [options]="options"
+    [defaultTab]="activeTab"
+    [contentTemplates]="templates"
+    (tabChange)="onTabChanged($event)"
+  >
+  </app-tabs>
+
+  <ng-template #communes>
+    <app-communes></app-communes>
+  </ng-template>
+</app-admin-layout>

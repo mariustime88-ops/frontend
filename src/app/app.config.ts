@@ -1,0 +1,41 @@
+import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+import { providePrimeNG } from 'primeng/config';
+import { ConfirmationService } from 'primeng/api';
+import Aura from '@primeng/themes/aura';
+
+import { routes } from './app.routes';
+import {
+  provideClientHydration,
+  withEventReplay,
+} from '@angular/platform-browser';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
+import { HeadersInterceptor } from './cores/interceptor/header.interceptor';
+import { AuthInterceptor } from './cores/interceptor/auth.interceptor';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideRouter(routes),
+    provideHttpClient(withFetch(), withInterceptors([HeadersInterceptor])),
+    provideClientHydration(withEventReplay()),
+    provideAnimationsAsync(),
+    providePrimeNG({
+      theme: {
+        preset: Aura,
+        options: {
+          darkModeSelector: false || 'none',
+        },
+      },
+    }),
+    ConfirmationService,
+  ],
+};
+
+
+export const GlobalConfig = {
+  token: 'indicateurs_token',
+  user: 'indicateurs_user',
+  permissions: 'indicateurs_permissions'
+};

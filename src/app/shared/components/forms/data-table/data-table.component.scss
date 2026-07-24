@@ -1,0 +1,295 @@
+:host ::ng-deep {
+  // Force le respect de la largeur du conteneur parent
+  * {
+    box-sizing: border-box;
+  }
+
+  .p-datatable {
+    border-radius: 8px;
+    overflow: hidden;
+
+    .p-datatable-header {
+      background-color: white !important;
+      padding: 0 !important;
+      border: none !important;
+    }
+
+    .p-datatable-thead > tr > th {
+      background-color: #f1f5f9;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      font-size: 0.875rem;
+    }
+
+    .p-datatable-tbody > tr > td {
+      font-size: 0.8rem;
+    }
+
+    .p-column-filter-menu-button,
+    .p-column-filter-clear-button {
+      font-size: 0.875rem;
+    }
+
+    .p-paginator-pages {
+      .p-paginator-page.p-paginator-page-selected {
+        background-color: rgb(170, 213, 238);
+      }
+    }
+
+    .p-input-icon-left > input,
+    .text-xl {
+      font-size: 0.8rem;
+    }
+  }
+}
+
+// Styles pour le tableau responsive
+.data-table-container {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  .p-datatable {
+    width: 100%;
+
+    .p-datatable-wrapper {
+      overflow-x: auto;
+      overflow-y: visible;
+      max-width: 100%;
+      width: 100%;
+
+      // Masquer la barre de défilement sur WebKit
+      &::-webkit-scrollbar {
+        height: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+
+        &:hover {
+          background: #a8a8a8;
+        }
+      }
+    }
+  }
+
+  .p-datatable-table {
+    width: 100%;
+    table-layout: fixed;
+
+    // Colonne numéro de ligne - largeur fixe
+    .row-number-column {
+      width: 60px !important;
+      min-width: 60px !important;
+      max-width: 60px !important;
+      position: sticky;
+      left: 50px; // Décalage de la largeur de la colonne de sélection
+      background-color: inherit;
+      z-index: 9;
+      box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+    }
+
+    // Ajustement quand la sélection est désactivée
+    &.no-selection .row-number-column {
+      left: 0;
+    }
+
+    // Colonnes normales - largeur flexible mais limitée
+    .data-column {
+      width: 150px;
+      min-width: 120px;
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      // Colonnes spécifiques peuvent avoir des largeurs différentes
+      &.wide-column {
+        width: 200px;
+        min-width: 180px;
+        max-width: 250px;
+      }
+
+      &.narrow-column {
+        width: 100px;
+        min-width: 80px;
+        max-width: 120px;
+      }
+
+      &.medium-column {
+        width: 150px;
+        min-width: 130px;
+        max-width: 180px;
+      }
+    }
+
+    // Gestion des couleurs de fond pour les colonnes sticky
+    thead tr th {
+      &.selection-column,
+      &.row-number-column,
+      &.actions-column {
+        background-color: #f1f5f9 !important;
+      }
+    }
+
+    tbody tr {
+      &:nth-child(even) {
+        td.selection-column,
+        td.row-number-column,
+        td.actions-column {
+          background-color: #f9fafb;
+        }
+      }
+
+      &:nth-child(odd) {
+        td.selection-column,
+        td.row-number-column,
+        td.actions-column {
+          background-color: white;
+        }
+      }
+
+      &:hover {
+        td.selection-column,
+        td.row-number-column,
+        td.actions-column {
+          background-color: #f3f4f6 !important;
+        }
+      }
+    }
+  }
+}
+
+// Responsive breakpoints
+@media (max-width: 768px) {
+  .data-table-container {
+    .p-datatable-table {
+      .data-column {
+        width: 120px;
+        min-width: 100px;
+        max-width: 150px;
+
+        &.wide-column {
+          width: 150px;
+          min-width: 130px;
+          max-width: 180px;
+        }
+
+        &.narrow-column {
+          width: 80px;
+          min-width: 70px;
+          max-width: 100px;
+        }
+      }
+
+      .actions-column {
+        width: 100px !important;
+        min-width: 100px !important;
+        max-width: 100px !important;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .data-table-container {
+    .p-datatable-table {
+      .selection-column {
+        width: 40px !important;
+        min-width: 40px !important;
+        max-width: 40px !important;
+      }
+
+      .row-number-column {
+        width: 50px !important;
+        min-width: 50px !important;
+        max-width: 50px !important;
+        left: 40px;
+      }
+
+      &.no-selection .row-number-column {
+        left: 0;
+      }
+
+      .data-column {
+        width: 100px;
+        min-width: 80px;
+        max-width: 120px;
+
+        &.wide-column {
+          width: 120px;
+          min-width: 100px;
+          max-width: 140px;
+        }
+
+        // Masquer les colonnes marquées comme hidden-mobile
+        &.hidden-mobile {
+          display: none !important;
+        }
+      }
+
+      .actions-column {
+        width: 80px !important;
+        min-width: 80px !important;
+        max-width: 80px !important;
+      }
+    }
+  }
+}
+
+// Classe utilitaire pour masquer des colonnes sur mobile
+.hidden-mobile {
+  @media (max-width: 768px) {
+    display: none !important;
+  }
+}
+
+.actions-column {
+  position: sticky;
+  right: 0;
+  background-color: inherit;
+  z-index: 11;
+}
+
+// Colonne de sélection - largeur fixe
+.selection-column {
+  position: sticky;
+  left: 0;
+  background-color: inherit;
+  z-index: 10;
+}
+
+// Colonnes sticky personnalisées - plusieurs peuvent exister
+.sticky-column {
+  position: sticky;
+  right: 4rem; // Position par défaut, si plusieurs sticky, elle doit être ajustée avec style inline
+  z-index: 10;
+  background-color: inherit;
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+// Gestion des couleurs de fond pour les colonnes sticky personnalisées
+thead tr th.sticky-column {
+  background-color: #f1f5f9 !important;
+}
+
+tbody tr {
+  &:nth-child(even) td.sticky-column {
+    background-color: #f9fafb;
+  }
+
+  &:nth-child(odd) td.sticky-column {
+    background-color: white;
+  }
+
+  &:hover td.sticky-column {
+    background-color: #f3f4f6 !important;
+  }
+}

@@ -1,0 +1,57 @@
+<div class="notif-modal-overlay" *ngIf="visible" (click)="close()">
+  <div class="notif-modal" (click)="$event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="notif-modal__header">
+      <div class="notif-modal__header-left">
+        <i class="fas fa-bell text-blue-500"></i>
+        <h3>Toutes les notifications</h3>
+      </div>
+      <div class="notif-modal__header-actions">
+        <label class="notif-modal__filter">
+          <input type="checkbox" [(ngModel)]="onlyUnread" />
+          <span>Non lues seulement</span>
+        </label>
+        <button class="notif-modal__mark-all" (click)="markAllRead()" title="Tout marquer comme lu">
+          <i class="fas fa-check-double"></i>
+          <span>Tout lu</span>
+        </button>
+        <button class="notif-modal__close" (click)="close()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="notif-modal__loading" *ngIf="loading$ | async">
+      <img src="assets/images/loader.gif" width="28" alt="" />
+    </div>
+
+    <!-- Empty -->
+    <div class="notif-modal__empty" *ngIf="!(loading$ | async) && filtered.length === 0">
+      <i class="fas fa-bell-slash"></i>
+      <span>{{ onlyUnread ? 'Aucune notification non lue' : 'Aucune notification' }}</span>
+    </div>
+
+    <!-- List -->
+    <div class="notif-modal__list" *ngIf="!(loading$ | async) && filtered.length > 0">
+      <div
+        *ngFor="let n of filtered"
+        class="notif-modal__item"
+        [class.notif-modal__item--unread]="!n.is_read"
+        (click)="markRead(n)"
+      >
+        <div class="notif-modal__item-icon" [ngClass]="colorFor(n.type)">
+          <i class="fas {{ iconFor(n.type) }}"></i>
+        </div>
+        <div class="notif-modal__item-body">
+          <p class="notif-modal__item-title">{{ n.title }}</p>
+          <p class="notif-modal__item-msg">{{ n.message }}</p>
+          <span class="notif-modal__item-time">{{ timeAgo(n.created_at) }}</span>
+        </div>
+        <span class="notif-modal__item-dot" *ngIf="!n.is_read"></span>
+      </div>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,29 @@
+<div class="card">
+  <p-tabs [value]="activeTab" scrollable (valueChange)="onTabChange($event)">
+    <p-tablist>
+      @for (tab of options; track tab.value) {
+        <p-tab [value]="tab.value">
+          {{ tab.label }}
+          @if (tab.count !== undefined) {
+            <span class="tab-count-badge">{{ tab.count }}</span>
+          }
+        </p-tab>
+      }
+    </p-tablist>
+    <p-tabpanels>
+      @for (tab of options; track tab.value) {
+        <p-tabpanel [value]="tab.value">
+          <!-- N'affiche le contenu que pour l'onglet actif -->
+          @if (tab.value === activeTab) {
+            <ng-container *ngIf="!contentTemplates">
+              <ng-content select="[tabContent='{{tab.value}}']"></ng-content>
+            </ng-container>
+            <ng-container *ngIf="contentTemplates && contentTemplates[tab.value]">
+              <ng-container *ngTemplateOutlet="contentTemplates[tab.value]"></ng-container>
+            </ng-container>
+          }
+        </p-tabpanel>
+      }
+    </p-tabpanels>
+  </p-tabs>
+</div>

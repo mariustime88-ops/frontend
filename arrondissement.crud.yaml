@@ -1,0 +1,92 @@
+# arrondissement.crud.yaml
+name: Arrondissements
+resourceName: arrondissement
+model:
+  - name: id
+    type: number
+    required: true
+  - name: nom
+    type: string
+    required: true
+  - name: code
+    type: string
+    required: true
+  - name: departement_id
+    type: number
+    required: true
+  - name: chef_lieu
+    type: string
+    required: true
+  - name: actif
+    type: boolean
+    required: true
+  - name: date_creation
+    type: Date
+    required: true
+
+columns:
+  - field: nom
+    header: Nom de l'arrondissement
+    filterType: text
+    style: { min-width: 15rem }
+  - field: code
+    header: Code
+    filterType: text
+    style: { min-width: 10rem }
+  - field: departement.nom
+    header: Département
+    filterType: text
+    style: { min-width: 12rem }
+  - field: chef_lieu
+    header: Chef-lieu
+    filterType: text
+    style: { min-width: 12rem }
+  - field: actif
+    header: Statut
+    filterType: boolean
+    style: { min-width: 8rem }
+  - field: date_creation
+    header: Date de création
+    filterType: date
+    style: { min-width: 12rem }
+
+formFields:
+  - name: nom
+    label: Nom de l'arrondissement
+    type: text
+    placeholder: Ex: Abomey-Calavi
+    required: true
+  - name: code
+    label: Code arrondissement
+    type: text
+    placeholder: Ex: AC
+    required: true
+  - name: departement_id
+    label: Département
+    type: select
+    placeholder: Sélectionnez un département
+    required: true
+    options:
+      - { id: 1, label: "Atlantique" }
+      - { id: 2, label: "Littoral" }
+      - { id: 3, label: "Ouémé" }
+  - name: chef_lieu
+    label: Chef-lieu
+    type: text
+    placeholder: Ex: Abomey-Calavi
+    required: true
+  - name: actif
+    label: Arrondissement actif
+    type: boolean
+    required: true
+  - name: date_creation
+    label: Date de création
+    type: date
+    required: true
+
+filters:
+  - nom
+  - code
+  - departement.nom
+  - chef_lieu
+  - actif

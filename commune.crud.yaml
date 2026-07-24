@@ -1,0 +1,108 @@
+# commune.crud.yaml
+name: Communes
+resourceName: commune
+model:
+  - name: id
+    type: number
+    required: true
+  - name: nom
+    type: string
+    required: true
+  - name: code
+    type: string
+    required: true
+  - name: arrondissement_id
+    type: number
+    required: true
+  - name: maire
+    type: string
+    required: false
+  - name: population
+    type: number
+    required: false
+  - name: superficie
+    type: number
+    required: false
+  - name: actif
+    type: boolean
+    required: true
+  - name: date_creation
+    type: Date
+    required: true
+
+columns:
+  - field: nom
+    header: Nom de la commune
+    filterType: text
+    style: { min-width: 15rem }
+  - field: code
+    header: Code
+    filterType: text
+    style: { min-width: 10rem }
+  - field: arrondissement.nom
+    header: Arrondissement
+    filterType: text
+    style: { min-width: 12rem }
+  - field: maire
+    header: Maire
+    filterType: text
+    style: { min-width: 12rem }
+  - field: population
+    header: Population
+    filterType: numeric
+    style: { min-width: 10rem }
+  - field: actif
+    header: Statut
+    filterType: boolean
+    style: { min-width: 8rem }
+
+formFields:
+  - name: nom
+    label: Nom de la commune
+    type: text
+    placeholder: Ex: Cotonou
+    required: true
+  - name: code
+    label: Code commune
+    type: text
+    placeholder: Ex: CTN
+    required: true
+  - name: arrondissement_id
+    label: Arrondissement
+    type: select
+    placeholder: Sélectionnez un arrondissement
+    required: true
+    options:
+      - { id: 1, label: "Abomey-Calavi" }
+      - { id: 2, label: "Ouidah" }
+      - { id: 3, label: "Allada" }
+  - name: maire
+    label: Maire
+    type: text
+    placeholder: Nom du maire
+    required: false
+  - name: population
+    label: Population
+    type: number
+    placeholder: Nombre d'habitants
+    required: false
+  - name: superficie
+    label: Superficie (km²)
+    type: number
+    placeholder: Superficie en kilomètres carrés
+    required: false
+  - name: actif
+    label: Commune active
+    type: boolean
+    required: true
+  - name: date_creation
+    label: Date de création
+    type: date
+    required: true
+
+filters:
+  - nom
+  - code
+  - arrondissement.nom
+  - maire
+  - actif

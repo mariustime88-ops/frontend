@@ -1,0 +1,78 @@
+<p-dialog
+  [(visible)]="visible"
+  [modal]="true"
+  [style]="{width: '70vw', maxWidth: '600px'}"
+  [closable]="true"
+  [closeOnEscape]="true"
+  [header]="title"
+  (onShow)="onShow()"
+  (onHide)="onHide()"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="rejection-modal">
+
+  <div class="modal-content">
+    <!-- Type info header -->
+    <div class="modal-header-custom d-flex justify-content-center align-items-center mb-4" *ngIf="typeDonnee">
+      <div class="type-info">
+        <span class="type-badge">
+          ⚠️ Rejet de: {{ typeDonnee.nom }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Form content -->
+    <div class="form-content">
+      <div class="form-group">
+        <label for="motif" class="field-label">
+          Motif du rejet <span class="required-indicator">*</span>
+        </label>
+        <div class="field-input-container">
+          <textarea
+            pInputTextarea
+            id="motif"
+            [(ngModel)]="motif"
+            rows="6"
+            placeholder="Veuillez expliquer la raison du rejet..."
+            class="field-input"
+            [class.border-red-500]="isMotifInvalid()">
+          </textarea>
+
+          <div *ngIf="isMotifInvalid()" class="mt-1 text-sm text-red-600">
+            {{ getMotifErrorMessage() }}
+          </div>
+
+          <small class="field-description">
+            Le motif doit contenir au moins 10 caractères et expliquer clairement la raison du rejet.
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer with buttons -->
+  <ng-template pTemplate="footer">
+    <div class="d-flex justify-content-between w-100">
+      <div>
+        <small class="text-muted">
+          Cette action est irréversible
+        </small>
+      </div>
+      <div>
+        <p-button
+          label="Annuler"
+          icon="pi pi-times"
+          styleClass="p-button-secondary mr-2"
+          (onClick)="onHide()">
+        </p-button>
+        <p-button
+          label="Rejeter"
+          icon="pi pi-ban"
+          styleClass="p-button-danger"
+          [loading]="loading"
+          (onClick)="submit()">
+        </p-button>
+      </div>
+    </div>
+  </ng-template>
+</p-dialog>

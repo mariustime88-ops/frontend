@@ -1,0 +1,55 @@
+/* Styles spécifiques pour garantir la responsivité sur tous les écrans */
+.custom-width {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media screen and (max-width: 768px) {
+  .card {
+    padding: 0.5rem;
+  }
+}
+/* Masque la barre de recherche à l'intérieur de ce composant spécifique */
+::ng-deep app-data-table {
+  input[type="text"], 
+  .p-input-icon-left, 
+  input[placeholder*="Rechercher"] {
+    display: none !important;
+  }
+}
+
+.custom-width {
+  width: 100%;
+  max-width: 100%;
+}
+/* Masque la barre de recherche */
+::ng-deep app-data-table {
+  input[type="text"], 
+  .p-input-icon-left, 
+  input[placeholder*="Rechercher"] {
+    display: none !important;
+  }
+
+  /* Force la petite colonne pour le numéro (#) */
+  th:nth-child(2), td:nth-child(2) {
+    width: 80px !important;
+    min-width: 80px !important;
+    text-align: center;
+  }
+
+  /* Force la grande colonne pour le libellé pour qu'elle occupe tout le reste */
+  th:nth-child(3), td:nth-child(3) {
+    width: auto !important;
+  }
+}
+
+.custom-width {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media screen and (max-width: 768px) {
+  .card {
+    padding: 0.5rem;
+  }
+}

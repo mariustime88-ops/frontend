@@ -1,0 +1,36 @@
+<div class="flex items-center gap-2">
+  <!-- Bouton Précédent -->
+  <button
+    class="btn btn-sm btn-outline"
+    (click)="changePage(currentPage - 1)"
+    [disabled]="currentPage === 1"
+  >
+    Précédent
+  </button>
+
+  <!-- Numéros de page -->
+  <div class="flex items-center gap-1">
+    <ng-container *ngFor="let pageNumber of pageNumbers">
+      <button
+        *ngIf="pageNumber !== '...'"
+        class="btn btn-sm"
+        [class.btn-primary]="pageNumber === currentPage"
+        (click)="changePage(pageNumber)"
+      >
+        {{ pageNumber }}
+      </button>
+      <span *ngIf="pageNumber === '...'" class="btn btn-sm btn-disabled">
+        ...
+      </span>
+    </ng-container>
+  </div>
+
+  <!-- Bouton Suivant -->
+  <button
+    class="btn btn-sm btn-outline"
+    (click)="changePage(currentPage + 1)"
+    [disabled]="currentPage === totalPages"
+  >
+    Suivant
+  </button>
+</div>

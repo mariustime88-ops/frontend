@@ -1,0 +1,58 @@
+.accordion-container {
+  width: 100%;
+  font-family: var(--font-family);
+}
+
+.accordion-wrapper {
+  width: 100%;
+}
+
+.accordion-item {
+  transition: all 0.3s ease;
+}
+
+.accordion-header {
+  transition: all 0.2s ease-in-out;
+  
+  &:hover {
+    background-color: #f3f4f6;
+  }
+}
+
+.accordion-content {
+  overflow: hidden;
+}
+
+/* Classes de largeur de colonne */
+.narrow-column {
+  width: 80px;
+  min-width: 80px;
+  max-width: 120px;
+}
+
+.medium-column {
+  width: 150px;
+  min-width: 150px;
+  max-width: 200px;
+}
+
+.wide-column {
+  width: 250px;
+  min-width: 250px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hidden-mobile {
+    display: none;
+  }
+}
+
+/* Styles pour les colonnes sticky */
+.sticky-column {
+  position: sticky;
+  right: 0;
+  background-color: white;
+  z-index: 1;
+  box-shadow: -5px 0 5px -5px rgba(0, 0, 0, 0.1);
+}

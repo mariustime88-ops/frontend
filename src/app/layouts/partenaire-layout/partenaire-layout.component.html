@@ -1,0 +1,24 @@
+<div
+  class="antialiased flex h-full text-base text-gray-700 [--tw-page-bg-dark:var(--tw-coal-500)] demo1 sidebar-fixed header-fixed bg-[--tw-page-bg] dark:bg-[--tw-page-bg-dark]"
+>
+  <div class="flex grow">
+    <app-partenaire-sidebar></app-partenaire-sidebar>
+    <div class="wrapper flex grow flex-col relative bg-white">
+      <app-partenaire-navbar></app-partenaire-navbar>
+
+      <main
+        class="relative min-h-[90vh] grow content pt-10"
+        id="content"
+        role="content"
+      >
+        <div class="container-fixed pb-20">
+          <div class="">
+            <ng-content></ng-content>
+          </div>
+        </div>
+
+        <app-footer></app-footer>
+      </main>
+    </div>
+  </div>
+</div>

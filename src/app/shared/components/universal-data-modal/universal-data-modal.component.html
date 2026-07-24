@@ -1,0 +1,181 @@
+<div class="modal self-center" data-modal="true" [id]="modalId">
+  <app-modal
+    #modalComponent
+    [title]="title + (typeDonnee ? ' - ' + typeDonnee.nom : '')"
+    maxWidth="70vw"
+  >
+    <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+      <!-- Header avec toggle de mode -->
+      <div
+        class="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 mb-4 flex justify-between items-center"
+        *ngIf="canSwitchMode"
+      >
+        <span
+          class="px-3 py-1 rounded-md text-sm font-medium"
+          [class]="
+            isEditMode()
+              ? 'bg-green-100 text-green-800'
+              : 'bg-blue-100 text-blue-800'
+          "
+        >
+          {{
+            isEditMode()
+              ? "Mode édition - Vous pouvez modifier les valeurs"
+              : "Mode consultation - Lecture seule"
+          }}
+        </span>
+        <div class="flex items-center gap-3" *ngIf="canEdit">
+          <span class="font-semibold text-gray-700">👁️ Voir</span>
+          <p-inputSwitch [(ngModel)]="editModeSwitch" inputId="modeSwitch">
+          </p-inputSwitch>
+          <span class="font-semibold text-gray-700">✏️ Éditer</span>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="loading" class="text-center py-4">
+        <p-progressSpinner></p-progressSpinner>
+        <p class="mt-2">Chargement des données...</p>
+      </div>
+
+      <!-- Contenu des données -->
+      <div *ngIf="!loading && dataValues.length > 0">
+        <form [formGroup]="form" *ngIf="isEditMode()">
+          <div class="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto p-2">
+            <div
+              class="contents"
+              *ngFor="let dataValue of dataValues; let i = index"
+            >
+              <div
+                class="bg-gray-50 border border-gray-200 rounded-lg p-4 transition-all hover:border-yellow-300 hover:shadow-md grid grid-cols-2 gap-4 items-center"
+              >
+                <div>
+                  <label
+                    [for]="'value_' + dataValue.critere_saisie_id"
+                    class="block font-semibold text-gray-700 mb-2 text-sm"
+                  >
+                    {{
+                      dataValue.critere_saisie?.nom ||
+                        "Critère " + dataValue.critere_saisie_id
+                    }}
+                    <span
+                      *ngIf="dataValue.critere_saisie?.is_enterable"
+                      class="text-red-500 ml-1"
+                      >*</span
+                    >
+                  </label>
+                  <small
+                    *ngIf="dataValue.critere_saisie?.description"
+                    class="text-xs text-gray-500 italic"
+                  >
+                    {{ dataValue.critere_saisie.description }}
+                  </small>
+                </div>
+
+                <div>
+                  <input
+                    *ngIf="dataValue.critere_saisie?.is_enterable"
+                    pInputText
+                    type="number"
+                    [id]="'value_' + dataValue.critere_saisie_id"
+                    [formControlName]="'value_' + dataValue.critere_saisie_id"
+                    class="w-full px-3 py-2 border-2 border-gray-300 rounded-md text-center font-semibold focus:border-yellow-400 focus:outline-none max-w-[120px] mx-auto text-sm"
+                    placeholder="Saisir une valeur..."
+                    (input)="onValueChange($event, dataValue)"
+                    min="0"
+                    step="1"
+                  />
+
+                  <div
+                    *ngIf="!dataValue.critere_saisie?.is_enterable"
+                    class="flex items-center justify-center px-3 py-2 bg-blue-50 border-2 border-blue-200 rounded-md max-w-[120px] mx-auto min-h-[40px]"
+                  >
+                    <span
+                      class="bg-blue-500 text-white px-2 py-1 rounded text-xs font-semibold mr-2"
+                      >Auto</span
+                    >
+                    <span class="font-bold text-blue-800">{{
+                      dataValue.valeur || "0"
+                    }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <!-- Mode lecture seule -->
+        <div *ngIf="isViewMode()">
+          <div class="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto p-2">
+            <div
+              class="contents"
+              *ngFor="let dataValue of dataValues; let i = index"
+            >
+              <div
+                class="bg-gray-50 border border-gray-200 rounded-lg p-4 transition-all hover:border-yellow-300 hover:shadow-md grid grid-cols-2 gap-4 items-center"
+              >
+                <div>
+                  <label class="block font-semibold text-gray-700 mb-2 text-sm">
+                    {{
+                      dataValue.critere_saisie?.nom ||
+                        "Critère " + dataValue.critere_saisie_id
+                    }}
+                  </label>
+                  <small
+                    *ngIf="dataValue.critere_saisie?.description"
+                    class="text-xs text-gray-500 italic"
+                  >
+                    {{ dataValue.critere_saisie.description }}
+                  </small>
+                </div>
+                <div
+                  class="flex items-center justify-center px-3 py-2 bg-white border-2 border-gray-200 rounded-md min-h-[40px]"
+                >
+                  <span class="font-bold text-gray-800 text-lg">{{
+                    dataValue.valeur || "0"
+                  }}</span>
+                  <span
+                    *ngIf="!dataValue.critere_saisie?.is_enterable"
+                    class="ml-2 text-lg"
+                    >🔄</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message si pas de données -->
+      <div *ngIf="!loading && dataValues.length === 0" class="text-center py-4">
+        <i class="pi pi-info-circle text-muted" style="font-size: 2rem"></i>
+        <p class="mt-2 text-muted">Aucune donnée disponible pour ce type.</p>
+      </div>
+    </div>
+    <div class="p-5 border-t border-gray-200">
+      <div class="flex justify-between items-center w-full">
+        <div>
+          <!-- Boutons spécifiques au contexte peuvent être ajoutés ici -->
+        </div>
+        <div class="flex gap-2">
+          <p-button
+            label="Fermer"
+            icon="pi pi-times"
+            styleClass="p-button-secondary"
+            (onClick)="onHide()"
+          >
+          </p-button>
+          <p-button
+            *ngIf="canSave()"
+            label="Sauvegarder"
+            icon="pi pi-save"
+            styleClass="p-button-primary"
+            [loading]="loading"
+            (onClick)="save()"
+          >
+          </p-button>
+        </div>
+      </div>
+    </div>
+  </app-modal>
+</div>

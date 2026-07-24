@@ -1,0 +1,232 @@
+<div
+  class="sidebar bg-light border-r border-r-gray-200 dark:border-r-coal-100 fixed top-0 bottom-0 z-20 hidden lg:flex flex-col items-stretch shrink-0"
+  data-drawer="true"
+  data-drawer-class="drawer drawer-start top-0 bottom-0"
+  data-drawer-enable="true|lg:false"
+  id="sidebar"
+>
+  <div
+    class="sidebar-header hidden lg:flex items-center relative justify-between px-3 lg:px-6 bg-gray-300 shrink-0"
+    id="sidebar_header"
+  >
+    <a class="" [routerLink]="'/' + paths.DASHBOARD">
+      <img
+        class="default-logo min-h-[22px] max-w-none rounded-lg my-3"
+        width="200"
+        src="assets/images/logo-unicef.png"
+        alt="logo"
+      />
+    </a>
+  </div>
+
+  <div
+    class="sidebar-content flex flex-col justify-between grow shrink-0 py-5 pr-2 border-t border-1 border-white h-screen overflow-y-auto scrollable-y"
+    id="sidebar_content"
+  >
+    <div
+      class="grow shrink-0 min-h-0 flex flex-col pl-2 pb-10 lg:pl-5 pr-1 lg:pr-3 overflow-y-auto scrollable-y"
+      id="sidebar_menu_wrapper"
+    >
+      <!-- Sidebar Menu -->
+      <div
+        class="menu flex flex-col grow gap-0.5"
+        data-menu="true"
+        data-menu-accordion-expand-all="false"
+        id="sidebar_menu"
+      >
+        <ng-container *ngIf="!loadOptions">
+          <ng-container *ngFor="let item of menuConfig">
+            <ng-container *ngIf="item.guarded !== false">
+              <div class="menu-item pt-2.25 pb-px" *ngIf="item.header">
+                <span
+                  class="menu-heading uppercase text-2sm font-medium text-gray-500 pl-[10px] pr-[10px]"
+                >
+                  {{ item.header }}
+                </span>
+              </div>
+              <div
+                class="menu-item menu-item-accordion {{
+                  this.isMenuItemActive(item) ? 'here show' : ''
+                }} {{
+                  this.isMenuItemActive(item) && !item.children ? 'active' : ''
+                }}"
+                data-menu-item-toggle="accordion"
+                data-menu-item-trigger="click"
+              >
+                <div
+                  class="menu-link flex items-center justify-between grow cursor-pointer border border-transparent gap-[10px] pl-[10px] pr-[10px] py-[6px]"
+                  tabindex="0"
+                >
+                  <div class="flex items-center">
+                    <span
+                      class="menu-icon items-start font-normal text-blue-900 w-[20px] me-3"
+                    >
+                      <i class="fas fa-{{ item.icon }} text-md"></i>
+                    </span>
+                    <ng-container *ngIf="item.link && !item.children">
+                      <a
+                        [routerLink]="'/' + item.link"
+                        class="menu-link border border-transparent items-center grow menu-item-active:bg-secondary-active dark:menu-item-active:bg-coal-300 dark:menu-item-active:border-gray-100 menu-item-active:rounded-lg hover:bg-secondary-active dark:hover:bg-coal-300 dark:hover:border-gray-100 hover:rounded-lg  {{
+                          this.isMenuItemActive(item) && !item.children
+                            ? 'gap-[5px] pl-[10px] pr-[10px] py-[8px]'
+                            : ''
+                        }}"
+                      >
+                        <span
+                          class="menu-link border border-transparent menu-item-active:text-primary items-center grow menu-item-active:bg-secondary-active dark:menu-item-active:bg-coal-300 dark:menu-item-active:border-gray-100 menu-item-active:rounded-lg hover:bg-secondary-active dark:hover:bg-coal-300 dark:hover:border-gray-100 hover:rounded-lg"
+                          [innerHTML]="item.label"
+                        >
+                        </span>
+                      </a>
+                    </ng-container>
+
+                    <span
+                      *ngIf="item.children"
+                      class="menu-title text-md font-medium text-black menu-item-active:text-primary menu-link-hover:!text-primary"
+                      [innerHTML]="item.label"
+                    >
+                    </span>
+                    <span *ngIf="item.children && item.badge" class="sidebar-notif-badge ml-2">{{ item.badge > 99 ? '99+' : item.badge }}</span>
+                  </div>
+
+                  <span
+                    *ngIf="item.children"
+                    class="menu-arrow text-gray-400 w-[20px] shrink-0 justify-end ml-1 mr-[-10px]"
+                  >
+                    <i
+                      class="fas fa-angle-right text-2xs menu-item-show:hidden"
+                    >
+                    </i>
+                    <i
+                      class="fas fa-angle-down text-2xs hidden menu-item-show:inline-flex"
+                    >
+                    </i>
+                  </span>
+                </div>
+                <div
+                  class="pl-[10px] before:left-[20px] menu-accordion gap-0.5 relative before:absolute before:top-0 before:bottom-0 before:border-l before:border-gray-200"
+                >
+                  <div *ngIf="item.children" class="bg-gray-200 rounded-lg">
+                    <ng-container *ngFor="let child of item.children">
+                      <div
+                        class="menu-item menu-item-accordion {{
+                          this.isMenuItemActive(child) ? 'here show ' : ''
+                        }} {{
+                          this.isMenuItemActive(child) && !child.children
+                            ? 'active'
+                            : ''
+                        }} "
+                        data-menu-item-toggle="accordion"
+                        data-menu-item-trigger="click"
+                      >
+                        <div
+                          class="menu-link border border-transparent grow cursor-pointer gap-[14px] pl-[10px] pr-[10px] py-[8px]"
+                          tabindex="0"
+                          *ngIf="child.guarded !== false"
+                        >
+                          <span
+                            *ngIf="
+                              !(this.isMenuItemActive(child) && !child.children)
+                            "
+                            class="flex w-[1px] relative"
+                          >
+                          </span>
+                          <ng-container *ngIf="child.link && !child.children">
+                            <a
+                              class="menu-link border border-transparent items-center grow menu-item-active:bg-secondary-active dark:menu-item-active:bg-coal-300 dark:menu-item-active:border-gray-100 menu-item-active:rounded-lg hover:bg-secondary-active dark:hover:bg-coal-300 dark:hover:border-gray-100 hover:rounded-lg {{
+                                this.isMenuItemActive(child) && !child.children
+                                  ? 'gap-[5px] pl-[10px] pr-[10px] py-[8px]'
+                                  : ''
+                              }}"
+                              [routerLink]="'/' + child.link"
+                              tabindex="0"
+                            >
+                              <span
+                                class="menu-bullet flex w-[6px] relative before:absolute before:top-0 before:size-[6px] before:rounded-full before:-translate-x-1/2 before:-translate-y-1/2 menu-item-active:before:bg-primary menu-item-hover:before:bg-primary"
+                              >
+                              </span>
+                              <span
+                                class="menu-title text-2sm font-normal text-black menu-item-active:text-primary menu-item-active:font-semibold menu-link-hover:!text-primary"
+                                [innerHTML]="child.label"
+                              >
+                              </span>
+                              <span *ngIf="child.badge" class="sidebar-notif-badge">{{ child.badge > 99 ? '99+' : child.badge }}</span>
+                            </a>
+                          </ng-container>
+                          <span
+                            *ngIf="child.children"
+                            class="menu-title text-2sm font-normal mr-1 ml-2 text-black menu-item-active:text-primary menu-item-active:font-medium menu-link-hover:!text-primary"
+                          >
+                            {{ child.label }}
+                          </span>
+                          <span
+                            *ngIf="child.children"
+                            class="menu-arrow text-gray-400 w-[20px] shrink-0 justify-end ml-1 mr-[-10px]"
+                          >
+                            <i
+                              class="fas fa-angle-right text-2xs menu-item-show:hidden"
+                            >
+                            </i>
+                            <i
+                              class="fas fa-angle-down text-2xs hidden menu-item-show:inline-flex"
+                            >
+                            </i>
+                          </span>
+                        </div>
+                        <div
+                          *ngIf="child.children"
+                          class="pl-[22px] pr-[22px] before:left-[32px] menu-accordion gap-0.5 relative before:absolute before:top-0 before:bottom-0 before:border-l before:border-gray-200"
+                        >
+                          <div
+                            class="menu-item {{
+                              this.isMenuItemActive(child2) ? 'active' : ''
+                            }}"
+                            *ngFor="let child2 of child.children"
+                          >
+                            <a
+                              class="menu-link border border-transparent items-center grow menu-item-active:bg-secondary-active dark:menu-item-active:bg-coal-300 dark:menu-item-active:border-gray-100 menu-item-active:rounded-lg hover:bg-secondary-active dark:hover:bg-coal-300 dark:hover:border-gray-100 hover:rounded-lg gap-[5px] pl-[10px] pr-[10px] py-[8px]"
+                              [routerLink]="'/' + child2.link"
+                              tabindex="0"
+                            >
+                              <span
+                                class="menu-bullet flex w-[6px] relative before:absolute before:top-0 before:size-[6px] before:rounded-full before:-translate-x-1/2 before:-translate-y-1/2 menu-item-active:before:bg-primary menu-item-hover:before:bg-primary"
+                              >
+                              </span>
+                              <span
+                                [innerHtml]="child2.label"
+                                class="text-2sm font-normal text-black menu-item-active:text-primary menu-item-active:font-semibold menu-link-hover:!text-primary"
+                              >
+                              </span>
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </ng-container>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+          </ng-container>
+        </ng-container>
+        <ng-container *ngIf="loadOptions">
+          <div class="h-full w-full flex justify-center items-center">
+            <img src="assets/images/loader.gif" width="30" alt="" />
+          </div>
+        </ng-container>
+      </div>
+    </div>
+
+    <!-- Bouton de déconnexion en bas du sidebar -->
+    <div class="border-t border-gray-200 pt-4 pb-2 px-6 shrink-0">
+      <button
+        (click)="logout()"
+        class="flex items-center w-full gap-3 py-2 px-3 text-red-600 rounded-lg hover:bg-red-50 transition-all duration-200"
+      >
+        <i class="fas fa-sign-out-alt text-md"></i>
+        <span class="font-medium">Déconnexion</span>
+      </button>
+    </div>
+  </div>
+
+  <p-toast></p-toast>
+</div>

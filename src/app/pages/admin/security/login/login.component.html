@@ -1,0 +1,108 @@
+<div class="grid lg:grid-cols-2 grow h-screen">
+  <div
+    class="flex flex-col items-center justify-center items-center p-8 lg:p-10 lg:order-2 order-1 bg-[#EEF2FF]"
+  >
+    <div class="card max-w-[500px] w-full">
+      <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
+        <div class="card-body flex flex-col gap-5 p-10">
+          <div class="flex justify-center">
+            <img
+              src="assets/images/unicef-bleu.png"
+              class="logo-unicef rounded-xl mb-5 "
+              alt="UNICEF Bénin"
+            />
+          </div>
+          <div class="text-center mb-2.5">
+            <h3 class="text-3xl font-bold text-gray-900 leading-none mb-2.5">
+              Connexion
+            </h3>
+          </div>
+
+          <!-- Email -->
+          <div class="mb-1">
+            <label for="email" class="font-semibold">Email</label>
+            <input
+              pInputText
+              type="email"
+              name="email"
+              [(ngModel)]="loginData.email"
+              class="input-style"
+              validate
+              required
+              pattern="^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$"
+              placeholder="Adresse email"
+            />
+          </div>
+
+          <!-- Mot de passe -->
+          <div class="mb-1">
+            <label for="password" class="font-semibold">Mot de passe</label>
+            <div class="relative w-full">
+              <input
+                pInputText
+                [type]="hidePassword ? 'password' : 'text'"
+                name="password"
+                [(ngModel)]="loginData.password"
+                class="input-style w-full"
+                validate
+                required
+                placeholder="Mot de passe"
+              />
+              <i
+                [ngClass]="hidePassword ? 'pi pi-eye' : 'pi pi-eye-slash'"
+                class="cursor-pointer absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                (click)="hidePassword = !hidePassword"
+              ></i>
+            </div>
+          </div>
+
+          <!-- Checkbox -->
+          <a href="" class="text-blue-500 text-xs underline">
+            <span> Mot de passe oublié ? </span>
+          </a>
+
+          <!-- Submit -->
+          <button
+            type="submit"
+            [disabled]="isLoading"
+            class="btn btn-primary flex justify-center grow text-lg"
+          >
+            <img
+              *ngIf="isLoading"
+              src="assets/images/loader.gif"
+              width="20"
+              alt="Chargement"
+            />
+            Se connecter
+          </button>
+
+          <!-- Lien vers interface partenaires -->
+          <!-- <div class="text-center mt-4">
+            <a
+              [routerLink]="'/' + paths.PARTENAIRES_LOGIN"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-[#6b05cae1] text-white text-sm rounded-lg hover:bg-[#5505A0E1] transition-colors"
+            >
+              <i class="fas fa-users"></i>
+              Accès Partenaires
+            </a>
+          </div> -->
+        </div>
+      </form>
+    </div>
+    <p class="mt-5">Copyright © 2026 | UNICEF - BÉNIN</p>
+  </div>
+  <div
+    class="bg-section flex flex-col justify-center items-center p-8"
+    style="--bg-image: url(&quot;assets/images/login-bg.jpg&quot;)"
+  >
+    <div class="text-center text-white">
+      <h1 class="text-4xl md:text-6xl font-bold mb-4">UNICEF Bénin</h1>
+      <p class="text-xl md:text-2xl">
+        Système Intégré de Gestion des indicateurs
+        <span class="md:block"> de la section protection de l'enfant </span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<p-toast></p-toast>

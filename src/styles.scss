@@ -1,0 +1,143 @@
+@use "./tailwindcss.scss";
+@use "../node_modules/primeicons/primeicons.css";
+// @import "tailwindcss-primeui";
+// @use "./index.css";
+
+
+@font-face {
+  font-family: "Poppins";
+  src: url("../public/assets/fonts/Poppins-Regular.ttf");
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden !important;
+  font-family: 'Poppins';
+}
+
+// PrimeNG overlays (dropdowns, autocomplete, etc.) must always appear above modals/panels
+.p-dropdown-panel,
+.p-multiselect-panel,
+.p-autocomplete-panel,
+.p-overlaypanel,
+.p-tieredmenu.p-tieredmenu-overlay {
+  z-index: 99999 !important;
+}
+
+// Les options des dropdowns peuvent passer à la ligne si le texte est long
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+// Empêche le panel de s'élargir au-delà de son trigger (PrimeNG override)
+.p-dropdown-panel.p-component {
+  min-width: 0 !important;
+  max-width: min(480px, 92vw);
+}
+
+
+.ng-invalid.ng-touched {
+  border-color: #ef4444 !important;
+}
+
+.validation-error {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.input-style {
+  @apply w-full border h-[40px] border-gray-300 rounded focus:outline-none focus:border-blue-400 p-3
+}
+
+
+.textarea-style {
+  @apply w-full border border-gray-300 rounded focus:outline-none focus:border-blue-400 p-3
+}
+
+
+.input-style-border-0 {
+  @apply w-full border h-[40px] rounded focus:outline-none
+}
+
+.step-form-btn {
+  @apply text-green-800 bg-white hover:bg-[var(--tw-main-blue)] text-green-800 hover:text-white outline outline-1 outline-green-800 transition-all duration-300
+}
+
+.sticky-actions-column {
+  position: sticky;
+  right: 0;
+  background-color: white;
+  // z-index: 10;
+}
+
+
+.custom-width {
+  width: 100%;
+  max-width: 1400px;
+
+  @media (min-width: 1701px) {
+    max-width: 78vw;
+  }
+
+  @media (max-width: 1700px) {
+    max-width: 75vw;
+  }
+
+  @media (max-width: 1400px) {
+    max-width: 70vw;
+  }
+
+  @media (max-width: 1010px) {
+    max-width: 100%;
+  }
+}
+
+
+.export-group {
+  display: flex;
+  gap: 0.375rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+  padding: 0.4rem 0.875rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+
+  svg { flex-shrink: 0; }
+
+  &:hover {
+    background: #bbf7d0;
+    border-color: #4ade80;
+    color: #14532d;
+  }
+
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  &.btn-export-pdf {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fca5a5;
+
+    &:hover {
+      background: #fecaca;
+      border-color: #f87171;
+      color: #7f1d1d;
+    }
+  }
+}

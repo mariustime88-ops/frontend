@@ -1,0 +1,39 @@
+# dashboard.crud.yaml
+name: Dashboard
+resourceName: dashboard
+model:
+  - name: id
+    type: number
+    required: true
+  - name: beneficiaires_recenses
+    type: number
+    required: true
+  - name: beneficiaires_retenus
+    type: number
+    required: true
+  - name: montant_total
+    type: number
+    required: true
+  - name: beneficiaires_non_payes
+    type: number
+    required: true
+  - name: beneficiaires_payes
+    type: number
+    required: true
+  - name: montant_payes
+    type: number
+    required: true
+
+columns:
+  - field: departement
+    header: Département
+    filterType: text
+    style: { min-width: 15rem }
+  - field: nombre_beneficiaires
+    header: Nombre de bénéficiaires
+    filterType: numeric
+    style: { min-width: 12rem }
+
+formFields: []
+
+filters: []

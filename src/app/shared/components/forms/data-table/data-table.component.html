@@ -1,0 +1,319 @@
+<!-- data-table.component.html -->
+<div class="data-table-container">
+  <p-table
+    #dt
+    [value]="data"
+    dataKey="id"
+    [rows]="rows"
+    [paginator]="defaultPaginator"
+    [globalFilterFields]="globalFilterFields"
+    class="p-datatable-gridlines"
+    [ngClass]="{ 'no-selection': !selectionEnabled }"
+  >
+    <!-- En-tête avec filtre et recherche -->
+    <ng-template pTemplate="caption">
+      <div class="flex items-center p-3">
+        <h2 class="text-xxl font-bold me-1">{{ title }} </h2>
+        <span *ngIf="filters" >
+          ({{filters['total']}} élément{{filters['total'] > 1 ? 's' : ''}} trouvé{{filters['total'] > 1 ? 's' : ''}})
+        </span>
+
+        <div class="flex justify-end items-center gap-3 ml-auto">
+          <div class="flex items-center ml-4">
+            <ng-content select="[tableLeftContent]"></ng-content>
+          </div>
+
+          <p-iconfield iconPosition="left" class="ml-auto">
+            <p-inputicon>
+              <i class="pi pi-search"></i>
+            </p-inputicon>
+            <input
+              pInputText
+              type="text"
+              (input)="onFilterInput($event)"
+              [placeholder]="searchPlaceHolder"
+            />
+          </p-iconfield>
+        </div>
+      </div>
+    </ng-template>
+
+    <!-- En-tête du tableau avec filtres de colonnes -->
+    <ng-template pTemplate="header">
+      <tr [ngStyle]="headerStyle">
+        <!-- Colonne de sélection sticky -->
+        <th
+          *ngIf="selectionEnabled"
+          class="selection-column text-center"
+          style="width: 4rem"
+        >
+          <div class="flex justify-center">
+            <p-checkbox
+              [binary]="true"
+              [ngModel]="isAllSelected()"
+              (onChange)="toggleSelectAll($event)"
+            >
+            </p-checkbox>
+          </div>
+        </th>
+
+        <!-- Colonne numéro de ligne sticky -->
+        <th class="row-number-column text-center">
+          <div class="flex justify-center">#</div>
+        </th>
+
+        <!-- Toutes les colonnes, incluant les sticky -->
+        <ng-container *ngFor="let col of columns">
+          <th
+            *ngIf="!col.hidden"
+            [ngStyle]="col.style"
+            [ngClass]="getColumnClass(col) + (col.sticky ? ' sticky-column' : '')"
+            class="data-column"
+          >
+            <div
+              class="flex items-center"
+              [ngClass]="{
+                'my-2': !defaultFilters,
+                'justify-center': col.style?.['textAlign'] === 'center',
+              }"
+            >
+              {{ col.header }}
+
+              <!-- Filtre texte -->
+              <ng-container *ngIf="col.filterType === 'text' && defaultFilters">
+                <p-columnFilter
+                  type="text"
+                  [field]="col.filterField || col.field"
+                  display="menu"
+                ></p-columnFilter>
+              </ng-container>
+
+              <!-- Filtre numérique -->
+              <ng-container
+                *ngIf="col.filterType === 'numeric' && defaultFilters"
+              >
+                <p-columnFilter
+                  type="numeric"
+                  [field]="col.filterField || col.field"
+                  display="menu"
+                ></p-columnFilter>
+              </ng-container>
+
+              <!-- Filtre date -->
+              <ng-container *ngIf="col.filterType === 'date' && defaultFilters">
+                <p-columnFilter
+                  type="date"
+                  [field]="col.filterField || col.field"
+                  display="menu"
+                ></p-columnFilter>
+              </ng-container>
+
+              <!-- Filtre booléen -->
+              <ng-container
+                *ngIf="col.filterType === 'boolean' && defaultFilters"
+              >
+                <p-columnFilter
+                  type="boolean"
+                  [field]="col.filterField || col.field"
+                  display="menu"
+                ></p-columnFilter>
+              </ng-container>
+
+              <!-- Emplacement pour des filtres personnalisés -->
+              <ng-container
+                *ngIf="col.filterType === 'custom' && defaultFilters"
+              >
+                <ng-content select="[customFilter]"></ng-content>
+              </ng-container>
+            </div>
+          </th>
+        </ng-container>
+
+        <!-- Colonne actions sticky à droite (toujours en dernier) -->
+        <th *ngIf="showActions" class="actions-column text-center">
+          <div class="flex justify-center">Actions</div>
+        </th>
+
+      </tr>
+    </ng-template>
+
+    <!-- Corps du tableau -->
+    <ng-template pTemplate="body" let-rowData let-rowIndex="rowIndex">
+      <tr
+        [ngStyle]="{
+          outline: rowIndex == data.length - 1 ? '1px solid #EBEAEAFF' : '',
+          paddingBottom: rowIndex == data.length - 1 ? '1rem' : '',
+        }"
+      >
+        <!-- Cellule de sélection sticky -->
+        <td
+          *ngIf="selectionEnabled"
+          class="selection-column text-center"
+          style="width: 4rem"
+        >
+          <div class="flex justify-center">
+            <p-checkbox
+              [binary]="true"
+              [ngModel]="isSelected(rowData)"
+              (onChange)="toggleSelection(rowData, $event)"
+            >
+            </p-checkbox>
+          </div>
+        </td>
+
+        <!-- Cellule numéro de ligne sticky -->
+        <td class="row-number-column text-center" style="width: 4rem">
+          <div class="flex justify-center">
+            {{ getRowNumber(rowIndex) }}
+          </div>
+        </td>
+
+        <!-- Cellules de données (toutes les colonnes, incluant les sticky) -->
+        <ng-container *ngFor="let col of columns">
+          <td
+            *ngIf="!col.hidden"
+            [ngClass]="
+              getColumnClass(col) +
+              ' data-column ' +
+              (col.sticky ? 'sticky-column ' : '') +
+              (col.tdclass ? col.tdclass(rowData) : '')
+            "
+            [ngStyle]="col.style"
+          >
+            <!-- Si la colonne a un template personnalisé et que ce template existe, on l'utilise -->
+            <ng-container
+              *ngIf="
+                col.customTemplate &&
+                  col.templateName &&
+                  getTemplate(col.templateName);
+                else defaultCell
+              "
+            >
+              <ng-container
+                *ngTemplateOutlet="
+                  getTemplate(col.templateName);
+                  context: { $implicit: rowData, field: col.field }
+                "
+              ></ng-container>
+            </ng-container>
+
+            <!-- Template par défaut -->
+            <ng-template #defaultCell>
+              <ng-container *ngIf="col.formatter; else standardFormatting">
+                <span *ngIf="col.htmlFormatted" [innerHTML]="col.formatter(rowData)"></span>
+                <span *ngIf="!col.htmlFormatted">{{ col.formatter(rowData) }}</span>
+              </ng-container>
+
+              <ng-template #standardFormatting>
+                <!-- Traitement des valeurs booléennes -->
+                <ng-container
+                  *ngIf="isBooleanValue(rowData, col); else notBoolean"
+                >
+                  <span [ngClass]="getBooleanClass(rowData, col)">
+                    {{ getBooleanText(rowData, col) }}
+                  </span>
+                </ng-container>
+
+                <!-- Traitement des valeurs non-booléennes -->
+                <ng-template #notBoolean>
+                  <!-- Traitement des dates -->
+                  <ng-container
+                    *ngIf="isDateValue(rowData, col); else defaultValue"
+                  >
+                    {{
+                      getNestedProperty(rowData, col.field)
+                        | date: getDateFormat(col) : "" : "fr-FR"
+                    }}
+                  </ng-container>
+
+                  <!-- Valeur par défaut -->
+                  <ng-template #defaultValue>
+                    {{ getNestedProperty(rowData, col.field) }}
+                  </ng-template>
+                </ng-template>
+              </ng-template>
+            </ng-template>
+          </td>
+        </ng-container>
+
+        <!-- Colonne des actions sticky à droite (toujours en dernier) -->
+        <td *ngIf="showActions" class="actions-column">
+          <ng-container
+            *ngIf="getTemplate(actionTemplateName); else defaultActionsTemplate"
+            [ngTemplateOutlet]="getTemplate(actionTemplateName)"
+            [ngTemplateOutletContext]="{ $implicit: rowData }"
+          ></ng-container>
+
+          <ng-template #defaultActionsTemplate>
+            <div class="flex justify-center gap-1">
+              <!-- Bouton Voir -->
+              <button
+                *ngIf="!hideView"
+                pButton
+                type="button"
+                [title]="viewTitle"
+                icon="pi pi-eye"
+                class="!p-1.5 !h-7 !w-7 !bg-blue-50 !text-blue-600 hover:!bg-blue-500 hover:!text-white transition-all duration-200 transform hover:scale-105"
+                (click)="handleView(rowData)"
+                attr.data-modal-toggle="#{{ viewId }}"
+              ></button>
+
+              <!-- Bouton Modifier -->
+              <button
+                *ngIf="!hideEdit"
+                pButton
+                type="button"
+                icon="pi pi-pencil"
+                class="!w-7 !h-7 !p-1 !bg-green-200/50 !text-green-500 hover:!outline !outline-1 hover:!bg-white hover:!outline-bg-green-500 !rounded-md !flex !justify-center !items-center !transition-all !duration-200 !transform hover:!scale-105"
+                (click)="handleEdit(rowData)"
+                attr.data-modal-toggle="#{{ modalId }}"
+              ></button>
+
+              <!-- Actions additionnelles -->
+              <ng-container *ngIf="additionalActionsTemplate">
+                <ng-container
+                  [ngTemplateOutlet]="additionalActionsTemplate"
+                  [ngTemplateOutletContext]="{ $implicit: rowData }"
+                >
+                </ng-container>
+              </ng-container>
+
+              <!-- Bouton Supprimer -->
+              <button
+                *ngIf="!hideDelete"
+                pButton
+                type="button"
+                icon="pi pi-trash"
+                class="!w-7 !h-7 !p-1 !bg-red-200/50 !text-red-500 hover:!outline hover:!outline-1 hover:!bg-white hover:!outline-bg-red-500 !rounded-md !flex !justify-center !items-center"
+                (click)="handleDelete(rowData)"
+                attr.data-modal-toggle="#{{ deleteId }}"
+              ></button>
+            </div>
+          </ng-template>
+        </td>
+
+      </tr>
+      <span style="visibility: hidden" *ngIf="rowIndex == data.length - 1"
+        >.</span
+      >
+    </ng-template>
+
+    <!-- Message quand aucune donnée n'est trouvée ou pendant le chargement -->
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td
+          [attr.colspan]="getTotalColumns()"
+          class="!text-center py-4 text-gray-500"
+        >
+          <ng-container *ngIf="loading; else noDataMessage">
+            <p-progressSpinner
+              [style]="{ width: '40px', height: '40px' }"
+              class="mx-auto"
+            ></p-progressSpinner>
+          </ng-container>
+          <ng-template #noDataMessage> Aucun élément trouvé </ng-template>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>

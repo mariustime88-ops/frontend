@@ -1,0 +1,283 @@
+<div class="accordion-container">
+  <!-- En-tête du composant avec titre -->
+  <div class="flex items-center p-3 mb-4">
+    <h2 class="text-xl font-semibold text-gray-800" *ngIf="title">
+      {{ title }}
+    </h2>
+    <span *ngIf="filters">
+      Total: {{ filters["total"] }} élément{{
+        filters["total"] > 1 ? "s" : ""
+      }}
+      trouvé{{ filters["total"] > 1 ? "s" : "" }}
+    </span>
+
+    <div class="flex justify-end items-center gap-3 ml-auto">
+      <div class="flex items-center ml-4">
+        <ng-content select="[tableLeftContent]"></ng-content>
+      </div>
+
+      <p-iconfield iconPosition="left" class="ml-auto">
+        <p-inputicon>
+          <i class="pi pi-search"></i>
+        </p-inputicon>
+        <input
+          pInputText
+          type="text"
+          (input)="onFilterInput($event)"
+          [placeholder]="searchPlaceHolder"
+        />
+      </p-iconfield>
+    </div>
+  </div>
+
+  <!-- État de chargement -->
+  <div *ngIf="loading" class="flex justify-center my-6">
+    <p-progressSpinner
+      [style]="{ width: '50px', height: '50px' }"
+    ></p-progressSpinner>
+  </div>
+
+  <!-- Contenu principal -->
+  <div *ngIf="!loading" class="accordion-wrapper">
+    <!-- Aucune donnée -->
+    <div
+      *ngIf="groupedData.length === 0"
+      class="my-12 text-center p-8 border-2 border-dashed border-gray-300 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100"
+    >
+      <div class="flex flex-col items-center space-y-4">
+        <!-- Icône SVG d'une boîte vide -->
+        <svg
+          class="w-16 h-16 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+          ></path>
+        </svg>
+
+        <!-- Message principal -->
+        <div class="space-y-2">
+          <h3 class="text-xl font-semibold text-gray-700">Aucune donnée disponible</h3>
+          <p class="text-gray-500 max-w-sm">
+            Il n'y a actuellement aucune donnée à afficher dans cette section.
+          </p>
+        </div>
+
+        <!-- Call-to-action subtil -->
+        <div class="mt-4">
+          <button
+            type="button"
+            class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            (click)="refreshData()"
+          >
+            <svg
+              class="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              ></path>
+            </svg>
+            Actualiser
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Liste des groupes -->
+    <div
+      *ngFor="let group of groupedData; let i = index"
+      class="accordion-item mb-3 border rounded-lg shadow-sm"
+    >
+      <!-- En-tête du groupe (toujours visible) -->
+      <div
+        class="accordion-header p-4 bg-gray-50 rounded-t-lg cursor-pointer flex justify-between items-center"
+        (click)="toggleGroup(group)"
+      >
+        <div class="flex items-center">
+          <i
+            class="pi"
+            [ngClass]="group.expanded ? 'pi-chevron-down' : 'pi-chevron-right'"
+          ></i>
+          <p class="ml-2">
+            <span class="font-bold text-xl">
+              <ng-container *ngIf="groupLabelPrefix"
+                >{{ groupLabelPrefix }}
+              </ng-container>
+              {{ group.groupValue || group.groupKey }}
+              <ng-container *ngIf="groupLabelSuffix">
+                {{ groupLabelSuffix }}</ng-container
+              >
+            </span>
+            <br />
+
+            <ng-container *ngIf="descriptionTemplate">
+              {{ formatDescriptionTemplate(group) }}</ng-container
+            >
+          </p>
+          <span
+            class="ml-2 bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded"
+          >
+            {{ formatCount(group.count || group.items.length) }}
+          </span>
+        </div>
+
+        <!-- Header Actions Template -->
+        <div class="flex items-center ml-4" *ngIf="headerActionsTemplate">
+          <ng-container
+            [ngTemplateOutlet]="headerActionsTemplate"
+            [ngTemplateOutletContext]="{ group: group }"
+          ></ng-container>
+        </div>
+      </div>
+
+      <!-- Contenu du groupe (visible uniquement lorsque développé) -->
+      <div class="accordion-content" *ngIf="group.expanded">
+        <div class="p-3">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-700">
+              <!-- En-têtes de colonnes -->
+              <thead class="text-xs text-black font-bold uppercase bg-gray-300">
+                <tr>
+                  <th class="px-4 py-2 font-medium sticky-column">#</th>
+                  <th
+                    *ngFor="let col of getVisibleColumns()"
+                    [ngClass]="getColumnClass(col)"
+                    class="px-4 py-2 font-medium"
+                  >
+                    {{ col.header }}
+                  </th>
+                  <th
+                    *ngIf="showActions"
+                    style="background-color: #ebecee !important"
+                    class="px-4 py-2 font-medium text-right sticky-column"
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+
+              <!-- Corps du tableau -->
+              <tbody>
+                <tr
+                  *ngFor="let item of group.items; let j = index"
+                  class="border-b hover:bg-gray-50"
+                >
+                  <td class="px-4 py-3 sticky-column">{{ j + 1 }}</td>
+
+                  <!-- Colonnes dynamiques -->
+                  <td *ngFor="let col of getVisibleColumns()" class="px-4 py-3">
+                    <!-- Différents types de contenu selon la configuration de la colonne -->
+                    <ng-container
+                      *ngIf="
+                        col.customTemplate &&
+                        getTemplate(col.templateName || '')
+                      "
+                    >
+                      <ng-container
+                        [ngTemplateOutlet]="
+                          getTemplate(col.templateName || '')!
+                        "
+                        [ngTemplateOutletContext]="{ $implicit: item }"
+                      ></ng-container>
+                    </ng-container>
+
+                    <ng-container *ngIf="!col.customTemplate">
+                      <!-- Pour les booléens -->
+                      <span
+                        *ngIf="isBooleanValue(item, col)"
+                        [ngClass]="getBooleanClass(item, col)"
+                      >
+                        {{ getBooleanText(item, col) }}
+                      </span>
+
+                      <!-- Pour les dates -->
+                      <span *ngIf="isDateValue(item, col) && !col.formatter">
+                        {{
+                          getNestedProperty(item, col.field)
+                            | date: getDateFormat(col)
+                        }}
+                      </span>
+
+                      <!-- Pour les autres types avec formatteur -->
+                      <span
+                        *ngIf="
+                          (!isBooleanValue(item, col) &&
+                            !isDateValue(item, col)) ||
+                          col.formatter
+                        "
+                        [innerHTML]="formatCellValue(item, col)"
+                      >
+                      </span>
+                    </ng-container>
+                  </td>
+
+                  <!-- Actions -->
+                  <td
+                    *ngIf="showActions"
+                    class="px-4 py-3 text-right sticky-column"
+                  >
+                    <div class="flex justify-end gap-2">
+                      <!-- Bouton Voir -->
+                      <button
+                        *ngIf="!hideView"
+                        pButton
+                        type="button"
+                        icon="pi pi-eye"
+                        class="!w-7 !h-7 !p-1 !bg-blue-100/50 !text-blue-600 hover:!outline hover:!outline-1 hover:!bg-white hover:!outline-bg-blue-600 !rounded-md !flex !justify-center !items-center"
+                        (click)="handleView(item)"
+                        title="Voir les détails"
+                      ></button>
+
+                      <!-- Bouton Éditer -->
+                      <button
+                        *ngIf="!hideEdit"
+                        pButton
+                        type="button"
+                        icon="pi pi-pencil"
+                        class="!w-7 !h-7 !p-1 !bg-orange-100/50 !text-orange-600 hover:!outline hover:!outline-1 hover:!bg-white hover:!outline-bg-orange-600 !rounded-md !flex !justify-center !items-center"
+                        (click)="handleEdit(item)"
+                        title="Modifier"
+                      ></button>
+
+                      <!-- Bouton Supprimer -->
+                      <button
+                        *ngIf="!hideDelete"
+                        pButton
+                        type="button"
+                        icon="pi pi-trash"
+                        class="!w-7 !h-7 !p-1 !bg-red-100/50 !text-red-600 hover:!outline hover:!outline-1 hover:!bg-white hover:!outline-bg-red-600 !rounded-md !flex !justify-center !items-center"
+                        (click)="handleDelete(item)"
+                        title="Supprimer"
+                      ></button>
+
+                      <!-- Actions supplémentaires définies par le template -->
+                      <ng-container *ngIf="additionalActionsTemplate">
+                        <ng-container
+                          [ngTemplateOutlet]="additionalActionsTemplate"
+                          [ngTemplateOutletContext]="{ $implicit: item }"
+                        ></ng-container>
+                      </ng-container>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

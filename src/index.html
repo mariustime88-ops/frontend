@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Gestion des indicateurs de Protection de l'Enfant | UNICEF - Bénin</title>
+    <base href="/">
+    <!-- <base href="/frontend/application/"> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/x-icon" href="assets/images/amoirie.png" />
+    <link rel="stylesheet" href="assets/css/apexcharts.css" />
+    <link rel="stylesheet" href="assets/css/styles.bundle.css" />
+    <link rel="stylesheet" href="assets/css/styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css"
+    />
+
+    <script
+      async=""
+      src="https://www.googletagmanager.com/gtag/js?id=G-52YZ3XGZJ6"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+
+      gtag("config", "G-52YZ3XGZJ6");
+    </script>
+  </head>
+  <body class="bgx-[#EEF2FF]">
+    <script>
+      const defaultThemeMode = "light"; // light|dark|system
+      let themeMode;
+
+      if (document.documentElement) {
+        if (localStorage.getItem("theme")) {
+          themeMode = localStorage.getItem("theme");
+        } else if (document.documentElement.hasAttribute("data-theme-mode")) {
+          themeMode = document.documentElement.getAttribute("data-theme-mode");
+        } else {
+          themeMode = defaultThemeMode;
+        }
+
+        if (themeMode === "system") {
+          themeMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+        }
+
+        document.documentElement.classList.add(themeMode);
+      }
+    </script>
+
+    <app-root></app-root>
+
+    <script src="assets/js/core.bundle.js"></script>
+    <script src="assets/js/apexcharts.min.js"></script>
+    <script src="assets/js/general.js"></script>
+    <script src="assets/js/demo1.js"></script>
+  </body>
+</html>

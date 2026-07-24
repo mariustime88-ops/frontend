@@ -1,0 +1,474 @@
+<div class="data-entry-accordion accordion-container">
+  <!-- Header avec titre et sous-titre -->
+  <div class="flex items-center p-3 mb-4">
+    <div class="">
+      <h2 class="text-xl font-semibold text-gray-800">{{ config.title }}</h2>
+      <p *ngIf="config.subtitle" class="text-gray-600">
+        {{ config.subtitle }}
+      </p>
+    </div>
+
+    <div
+      class="flex justify-end items-center gap-3 ml-auto"
+      *ngIf="
+        config.showStatusFilters ||
+        config.showThematicFilter ||
+        config.showPeriodFilter
+      "
+    >
+      <div class="search-input-wrapper">
+        <i class="pi pi-search search-icon"></i>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Rechercher..."
+          class="search-input"
+        />
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtres -->
+  <div
+    *ngIf="
+      config.showStatusFilters ||
+      config.showThematicFilter ||
+      config.showPeriodFilter
+    "
+    class="filters-container p-3 mb-4 flex flex-wrap gap-4"
+  >
+    <!-- Filtre par statut -->
+    <!-- <div *ngIf="config.showStatusFilters" class="w-full md:w-64">
+      <p-dropdown
+        [(ngModel)]="filters.status"
+        [options]="statusOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Filtrer par statut"
+        [showClear]="true"
+        appendTo="body"
+        styleClass="w-full"
+        (onChange)="onFilterChange()"
+      >
+      </p-dropdown>
+    </div> -->
+
+    <!-- Filtre par thématique -->
+    <div *ngIf="config.showThematicFilter" class="w-full md:w-64">
+      <p-dropdown
+        [(ngModel)]="filters.thematic_id"
+        [options]="thematicOptions"
+        optionLabel="name"
+        optionValue="id"
+        placeholder="Filtrer par thématique"
+        [showClear]="true"
+        appendTo="body"
+        styleClass="w-full"
+        (onChange)="onFilterChange()"
+      >
+      </p-dropdown>
+    </div>
+
+    <!-- Filtre par période -->
+    <div *ngIf="config.showPeriodFilter" class="w-full md:w-64">
+      <p-dropdown
+        [(ngModel)]="filters.period_id"
+        [options]="periodOptions"
+        optionLabel="name"
+        optionValue="id"
+        placeholder="Filtrer par période"
+        [showClear]="true"
+        appendTo="body"
+        styleClass="w-full"
+        (onChange)="onFilterChange()"
+      >
+      </p-dropdown>
+    </div>
+  </div>
+
+  <!-- État de chargement -->
+  <div *ngIf="loading" class="flex justify-center my-6">
+    <p-progressSpinner
+      [style]="{ width: '50px', height: '50px' }"
+    ></p-progressSpinner>
+  </div>
+
+  <!-- Message d'erreur -->
+  <div
+    *ngIf="error"
+    class="p-4 my-4 bg-red-100 rounded-lg border-l-4 border-red-600"
+  >
+    <div class="flex items-center">
+      <i class="pi pi-exclamation-triangle text-red-600 mr-2"></i>
+      <p class="text-red-800">{{ error }}</p>
+    </div>
+  </div>
+
+  <!-- Accordéon des données -->
+  <div *ngIf="!loading && !error && filteredData.length > 0" class="accordion-wrapper">
+    <p-accordion [multiple]="true" styleClass="data-accordion w-full">
+      <p-accordionTab
+        *ngFor="let thematic of filteredData"
+        [headerStyle]="{
+          'border-left': '4px solid ' + thematic.thematic.color,
+          'border-radius': '8px',
+          'margin-bottom': '10px',
+          'background-color': '#f9fafb',
+        }"
+        styleClass="mb-3 border rounded-lg shadow-sm accordion-item"
+      >
+        <!-- En-tête personnalisé avec actions pour la thématique -->
+        <ng-template pTemplate="header">
+          <div
+            class="px-4 bg-gray-50 rounded-t-lg flex justify-between items-center w-full"
+          >
+            <div class="flex flex-col gap-0.5">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-xl text-gray-800">{{
+                  thematic.thematic.name
+                }}</span>
+                <span class="text-sm text-gray-500">
+                  ({{ thematic.data_entries.length }} {{ thematic.data_entries.length > 1 ? 'données' : 'donnée' }} de saisie au total)
+                </span>
+              </div>
+              <span *ngIf="!isNationalUser && countValidatedNotTransmitted(thematic) > 0"
+                class="text-xs text-red-500 font-semibold flex items-center gap-1">
+                <i class="pi pi-exclamation-triangle"></i>
+                {{ countValidatedNotTransmitted(thematic) }} donnée(s) validée(s) non encore transmise(s)
+              </span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <!-- Template personnalisé pour les actions d'en-tête si fourni -->
+              <ng-container *ngIf="customHeaderTemplate">
+                <ng-container
+                  *ngTemplateOutlet="
+                    customHeaderTemplate;
+                    context: { $implicit: thematic }
+                  "
+                ></ng-container>
+              </ng-container>
+
+              <!-- Actions par défaut -->
+              <ng-container *ngIf="!customHeaderTemplate">
+                <!-- Bouton Saisir les données -->
+                <button
+                  *ngIf="config.showSaisirButton"
+                  type="button"
+                  [class]="(config.saisirButtonColorClass || 'bg-blue-500 hover:bg-blue-600 text-white') + ' px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1'"
+                  (click)="onSaisirThematicClicked($event, thematic)"
+                >
+                  <i [class]="config.saisirButtonIcon || 'pi pi-pencil'"></i>{{ config.saisirButtonText || 'Saisir les données' }}
+                </button>
+
+                <!-- Bouton Transmettre tout -->
+                <button
+                  *ngIf="config.showTransmetButton && !isNationalUser && (countValidatedNotTransmitted(thematic) > 0 || (!['TRANSMITTED','VALIDATED'].includes(thematic.status) && !hasAnyTransmittedEntry(thematic)))"
+                  type="button"
+                  [class]="countValidatedNotTransmitted(thematic) > 0
+                    ? 'border-2 border-red-500 text-red-600 hover:bg-red-50 px-3 py-1 rounded text-sm font-semibold transition-colors flex items-center gap-1'
+                    : 'border border-amber-500 text-amber-600 hover:bg-amber-50 px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1'"
+                  (click)="onTransmitThematicClicked($event, thematic)"
+                >
+                  <i class="pi pi-send"></i>
+                  <ng-container *ngIf="countValidatedNotTransmitted(thematic) > 0; else defaultTransmitLabel">
+                    Transmettre les {{ countValidatedNotTransmitted(thematic) }} validée(s)
+                  </ng-container>
+                  <ng-template #defaultTransmitLabel>{{ config.transmetButtonText || 'Transmettre tout' }}</ng-template>
+                </button>
+
+                <!-- Boutons Voir/Modifier les données (pour les validateurs) -->
+                <ng-container *ngIf="config.showVoirDonneesButton">
+
+                  <!-- Cas : entrées VALIDATED non transmises → "Modifier les décisions" (pas pour le national) -->
+                  <button
+                    *ngIf="!isNationalUser && countValidatedNotTransmitted(thematic) > 0"
+                    type="button"
+                    class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1"
+                    (click)="onModifierDecisionsClicked($event, thematic)"
+                    title="Rouvrir pour modifier vos décisions non encore transmises"
+                  >
+                    <i class="pi pi-pencil"></i>Modifier les décisions
+                  </button>
+
+                  <!-- "Voir les autres données" si d'autres entrées existent au-delà des VALIDATED non transmises -->
+                  <button
+                    *ngIf="!isNationalUser && countValidatedNotTransmitted(thematic) > 0 && hasOtherDataBeyondValidated(thematic)"
+                    type="button"
+                    class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1"
+                    (click)="onVoirDonneesClicked($event, thematic)"
+                  >
+                    <i class="pi pi-eye"></i>Voir les autres données
+                  </button>
+
+                  <!-- Cas normal : aucune VALIDATED non transmise (ou niveau national) → "Voir les données" -->
+                  <button
+                    *ngIf="isNationalUser || countValidatedNotTransmitted(thematic) === 0"
+                    type="button"
+                    class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1"
+                    (click)="onVoirDonneesClicked($event, thematic)"
+                  >
+                    <i class="pi pi-eye"></i>Voir les données
+                  </button>
+
+                </ng-container>
+
+                <!-- Bouton Valider tout (pour les validateurs) -->
+                <button
+                  *ngIf="
+                    config.showBatchValidationButton &&
+                    canValidateThematic(thematic)
+                  "
+                  type="button"
+                  class="bg-transparent outline outline-1 outline-green-500 text-green-500 hover:bg-green-600 hover:text-white px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1"
+                  (click)="onValidateThematicClicked($event, thematic)"
+                >
+                  <i class="pi pi-check-circle"></i>Valider tout
+                </button>
+              </ng-container>
+            </div>
+          </div>
+        </ng-template>
+
+        <!-- Contenu de l'accordéon -->
+        <div class="accordion-content">
+          <!-- Tableau des entrées de données -->
+          <table class="w-full text-sm text-left text-gray-700">
+            <thead class="text-xs text-black font-bold uppercase bg-gray-300">
+              <tr>
+                <!-- Numéro de ligne -->
+                <th class="px-4 py-2 font-medium sticky-column">#</th>
+                <!-- Colonnes dynamiques en fonction de la configuration -->
+                <ng-container *ngFor="let column of displayedColumns">
+                  <th
+                    class="px-4 py-2 font-medium"
+                    [ngStyle]="{
+                      'text-align': column.textAlign || 'left',
+                      width: column.width || 'auto',
+                    }"
+                  >
+                    {{ column.header }}
+                  </th>
+                </ng-container>
+                <!-- <th
+                  *ngIf="
+                    config.showSaisirButton ||
+                    config.showTransmetButton ||
+                    config.mode !== 'PARTNER'
+                  "
+                  style="background-color: #ebecee !important"
+                  class="px-4 py-2 font-medium text-right sticky-column"
+                >
+                  Actions
+                </th> -->
+              </tr>
+            </thead>
+            <tbody>
+              <ng-container
+                *ngFor="let entry of thematic.data_entries; let j = index"
+              >
+                <!-- Template personnalisé pour les lignes si fourni -->
+                <ng-container *ngIf="customRowTemplate">
+                  <ng-container
+                    *ngTemplateOutlet="
+                      customRowTemplate;
+                      context: {
+                        $implicit: entry,
+                        thematic: thematic,
+                        index: j,
+                      }
+                    "
+                  ></ng-container>
+                </ng-container>
+
+                <!-- Ligne par défaut -->
+                <tr
+                  *ngIf="!customRowTemplate"
+                  (click)="onRowClicked(entry)"
+                  class="border-b hover:bg-gray-50"
+                >
+                  <!-- Numéro de ligne -->
+                  <td class="px-4 py-3 sticky-column">{{ j + 1 }}</td>
+
+                  <!-- Colonnes dynamiques -->
+                  <ng-container *ngFor="let column of displayedColumns">
+                    <td
+                      class="px-4 py-3"
+                      [ngStyle]="{ 'text-align': column.textAlign || 'left' }"
+                    >
+                      <ng-container *ngIf="column.formatter; else defaultValue">
+                        <span [innerHTML]="column.formatter(entry)"></span>
+                      </ng-container>
+                      <ng-template #defaultValue>
+                        <ng-container
+                          *ngIf="column.field === 'entry_state.status'"
+                        >
+                          <span
+                            class="status-badge"
+                            [ngClass]="getStatusClass(entry.entry_state.status)"
+                          >
+                            {{ formatStatus(entry.entry_state.status) }}
+                          </span>
+                        </ng-container>
+                        <ng-container
+                          *ngIf="column.field !== 'entry_state.status'"
+                        >
+                          {{ getNestedValue(entry, column.field) }}
+                        </ng-container>
+                      </ng-template>
+                    </td>
+                  </ng-container>
+                  <!-- <td
+                    *ngIf="
+                      config.showSaisirButton ||
+                      config.showTransmetButton ||
+                      config.mode !== 'PARTNER'
+                    "
+                    class="px-4 py-3 text-right sticky-column"
+                  >
+                    <ng-container *ngIf="customActionsTemplate">
+                      <ng-container
+                        *ngTemplateOutlet="
+                          customActionsTemplate;
+                          context: { $implicit: entry, thematic: thematic }
+                        "
+                      ></ng-container>
+                    </ng-container>
+
+                    <ng-container *ngIf="!customActionsTemplate">
+                      <div class="flex justify-end gap-2">
+
+                      </div>
+                    </ng-container>
+                  </td> -->
+                </tr>
+              </ng-container>
+            </tbody>
+          </table>
+        </div>
+      </p-accordionTab>
+    </p-accordion>
+  </div>
+
+  <!-- Message si aucun résultat de recherche -->
+  <div
+    *ngIf="!loading && !error && data.length > 0 && filteredData.length === 0"
+    class="my-6 text-center p-6 border border-gray-200 rounded-lg bg-gray-50"
+  >
+    <i class="pi pi-search text-gray-400 text-3xl mb-3 block"></i>
+    <p class="text-gray-600 font-medium">Aucun résultat pour "{{ searchTerm }}"</p>
+    <p class="text-gray-400 text-sm mt-1">Essayez un autre terme de recherche</p>
+  </div>
+
+  <!-- Message si aucune donnée -->
+  <div
+    *ngIf="!loading && !error && data.length === 0"
+    class="my-12 text-center p-8 border-2 border-dashed border-gray-300 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100"
+  >
+    <div class="flex flex-col items-center space-y-4">
+      <!-- Icône SVG d'une boîte vide -->
+      <svg
+        class="w-16 h-16 text-gray-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="1.5"
+          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+        ></path>
+      </svg>
+
+      <!-- Message principal -->
+      <div class="space-y-2">
+        <h3 class="text-xl font-semibold text-gray-700">
+          Aucune donnée disponible
+        </h3>
+        <p class="text-gray-500 max-w-sm">
+          Il n'y a actuellement aucune donnée à afficher dans cette section.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modals intégrés directement dans le composant -->
+<!-- Toast pour les messages -->
+<p-toast></p-toast>
+
+<!-- Confirmation Dialog -->
+<p-confirmDialog [style]="{ width: '450px' }"></p-confirmDialog>
+
+<!-- Modal de détails -->
+<!-- <app-data-details-modal
+  [visible]="showDetailsModal"
+  [typeDonnee]="selectedTypeDonnee"
+  [thematicId]="selectedEntry?.data_entry?.id"
+  (visibleChange)="onDetailsModalClose()"
+></app-data-details-modal> -->
+
+<!-- Modal d'édition -->
+<!-- <app-universal-data-modal
+  [modalId]="'edit-data-modal'"
+  [mode]="'edit'"
+  [title]="'Modifier les données'"
+  [typeDonnee]="selectedTypeDonnee"
+  [structureTypeDonneeId]="selectedStructureTypeDonneeId"
+  [canEdit]="true"
+  [canSwitchMode]="true"
+  [visible]="showEditModal"
+  (modalClose)="onEditModalClose()"
+  (saved)="onDataSaved($event)"
+></app-universal-data-modal> -->
+
+<!-- Modal de rejet -->
+<p-dialog
+  header="Motif de rejet"
+  [(visible)]="showRejectModal"
+  [modal]="true"
+  [style]="{ width: '450px' }"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="true"
+  (onHide)="onRejectModalClose()"
+>
+  <div class="rejection-form p-fluid">
+    <div class="mb-3">
+      <label
+        for="rejection-reason"
+        class="block mb-2 text-sm font-medium text-gray-700"
+      >
+        Veuillez indiquer le motif de rejet:
+      </label>
+      <textarea
+        id="rejection-reason"
+        [(ngModel)]="rejectionReason"
+        rows="4"
+        class="p-3 block w-full rounded-md border border-gray-300 text-sm"
+        placeholder="Entrez le motif de rejet..."
+      >
+      </textarea>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <button
+      type="button"
+      pButton
+      label="Annuler"
+      icon="pi pi-times"
+      class="p-button-text p-button-danger"
+      (click)="onRejectModalClose()"
+    ></button>
+    <button
+      type="button"
+      pButton
+      label="Confirmer le rejet"
+      icon="pi pi-check"
+      class="p-button-danger"
+      (click)="onRejectConfirm()"
+    ></button>
+  </ng-template>
+</p-dialog>

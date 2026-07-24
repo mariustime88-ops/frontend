@@ -1,0 +1,18 @@
+.bg-section {
+  position: relative;
+  background-color: #1b85ffe1;
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%; /* Pour que l'élément couvre toute la section */
+    background-image: var(--bg-image, url("/assets/images/login-bg.jpg"));
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+    z-index: -1; /* Assurez-vous que l'image de fond ne chevauche pas le contenu de la section */
+  }
+}
+

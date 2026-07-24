@@ -1,0 +1,12 @@
+
+export enum DataStates {
+  NOT_STARTED = 'NOT_STARTED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  TRANSMITTED = 'TRANSMITTED',
+  VALIDATED = 'VALIDATED',
+  REJECTED = 'REJECTED',
+  ARCHIVED = 'ARCHIVED',
+};
+
+export enum ModulesConfig {}

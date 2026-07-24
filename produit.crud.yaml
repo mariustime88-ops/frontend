@@ -1,0 +1,85 @@
+# produit.crud.yaml
+name: Produits
+resourceName: products
+model:
+  - name: id
+    type: number
+    required: true
+  - name: libelle
+    type: string
+    required: true
+  - name: prix
+    type: number
+    required: true
+  - name: description
+    type: string
+    required: false
+  - name: categorie_id
+    type: number
+    required: true
+  - name: categorie
+    type: object
+    required: true
+    properties:
+      name:
+        type: string
+        required: true
+  - name: date_creation
+    type: Date
+    required: true
+
+columns:
+  - field: libelle
+    header: Libellé
+    filterType: text
+    style: { min-width: 15rem }
+  - field: prix
+    header: Prix (€)
+    filterType: numeric
+    style: { min-width: 10rem }
+  - field: categorie.name
+    header: Catégorie
+    filterType: text
+    style: { min-width: 12rem }
+  - field: date_creation
+    header: Date de création
+    filterType: date
+    style: { min-width: 12rem }
+
+formFields:
+  - name: libelle
+    label: Libellé
+    type: text
+    placeholder: Libellé du produit
+    required: true
+  - name: prix
+    label: Prix (€)
+    type: number
+    placeholder: Prix du produit
+    required: true
+  - name: description
+    label: Description
+    type: textarea
+    placeholder: Description détaillée du produit
+    required: false
+  - name: categorie_id
+    label: Catégorie
+    type: select
+    placeholder: Sélectionnez une catégorie
+    required: true
+    options:
+      - value: 1
+        label: Électronique
+      - value: 2
+        label: Vêtements
+      - value: 3
+        label: Alimentation
+  - name: date_creation
+    label: Date de création
+    type: date
+    required: true
+
+filters:
+  - libelle
+  - prix
+  - categorie_id

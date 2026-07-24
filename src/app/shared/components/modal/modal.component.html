@@ -1,0 +1,26 @@
+<div
+  class="modal-content bg-white rounded-xl shadow-lg"
+  [style.max-width]="maxWidth"
+  [style.max-height]="maxHeight"
+>
+  <div
+    class="modal-header py-4 px-5 text-white rounded-t-xl flex justify-between items-center"
+    [ngClass]="{
+      'bg-[var(--tw-main-blue)]': !forDelete && !forSuccess,
+      'bg-red-600': forDelete,
+      'bg-green-600': forSuccess,
+      'bg-yellow-600': forInfo,
+    }"
+  >
+    <h1 class="text-lg font-bold">{{ title }}</h1>
+    <button
+      type="button"
+      class="btn btn-sm btn-light shrink-0 btn_close"
+      data-modal-dismiss="true"
+    >
+      <i class="fas fa-xmark text-red-800"></i>
+    </button>
+  </div>
+
+  <ng-content></ng-content>
+</div>

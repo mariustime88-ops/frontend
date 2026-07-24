@@ -1,0 +1,144 @@
+<header
+  class="header fixed top-0 z-99999 left-0 right-0 flex items-stretch shadow-sm shrink-0 bg-light border-b-[0.2rem] border-[var(--tw-main-blue)]"
+  data-sticky="true"
+  data-sticky-class="shadow-sm"
+  data-sticky-name="header"
+  id="header"
+>
+  <!-- Container -->
+  <div
+    class="container-fixed flex justify-between items-stretch lg:gap-4"
+    id="header_container"
+  >
+    <!-- Mobile Logo -->
+    <div class="flex gap-1 lg:hidden items-center -ml-1">
+      <a class="shrink-0" href="index.html">
+        <img class="max-h-[25px] w-full" src="assets/images/logo-unicef.png" />
+      </a>
+      <div class="flex items-center">
+        <button
+          class="btn btn-icon btn-light btn-clear btn-sm"
+          data-drawer-toggle="#sidebar"
+        >
+          <i class="fas fa-bars"> </i>
+        </button>
+        <button
+          class="btn btn-icon btn-light btn-clear btn-sm"
+          data-drawer-toggle="#mega_menu_wrapper"
+        >
+          <i class="ki-filled ki-burger-menu-2"> </i>
+        </button>
+      </div>
+    </div>
+    <!-- End of Mobile Logo -->
+    <!-- Mega Men -->
+    <div class="flex items-stretch" id="mega_menu_container">
+      <div
+        class="flex items-stretch"
+        data-reparent="true"
+        data-reparent-mode="prepend|lg:prepend"
+        data-reparent-target="body|lg:#mega_menu_container"
+      >
+        <div
+          class="hidden lg:flex lg:items-stretch"
+          data-drawer="true"
+          data-drawer-class="drawer drawer-start fixed z-10 top-0 bottom-0 w-full mr-5 max-w-[250px] p-5 lg:p-0 overflow-auto"
+          data-drawer-enable="true|lg:false"
+          id="mega_menu_wrapper"
+        >
+          <div
+            class="menu flex-col lg:flex-row gap-5 lg:gap-7.5"
+            data-menu="true"
+            id="mega_menu"
+          >
+            <div class="menu-item active">
+              <a
+                class="menu-link text-nowrap text-lg text-gray-800 font-bold menu-item-hover:text-primary menu-item-active:text-gray-900 menu-item-active:font-medium"
+                href="index.html"
+              >
+                <span class="menu-title text-nowrap"> {{ appName }} </span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- End of Mega Men -->
+    <!-- Topbar -->
+    <div class="flex items-center gap-2 lg:gap-3.5">
+
+      <div class="menu" data-menu="true">
+        <div
+          class="menu-item"
+          data-menu-item-offset="20px, 10px"
+          data-menu-item-placement="bottom-end"
+          data-menu-item-toggle="dropdown"
+          data-menu-item-trigger="click|lg:click"
+        >
+          <div class="menu-toggle btn btn-icon rounded-full">
+            <img
+              alt=""
+              class="size-9 rounded-full border-2 border-success shrink-0"
+              src="assets/images/profile.jpg"
+            />
+          </div>
+          <div
+            class="menu-dropdown menu-default light:border-gray-300 w-screen max-w-[250px]"
+          >
+            <div class="flex items-center justify-between px-5 py-1.5 gap-1.5">
+              <div class="flex items-center gap-2">
+                <img
+                  alt=""
+                  class="size-9 rounded-full border-2 border-success"
+                  src="assets/images/profile.jpg"
+                />
+                <div class="flex flex-col gap-1.5">
+                  <span
+                    class="text-sm text-gray-800 font-semibold leading-none"
+                  >
+                    {{ user.name }}
+                  </span>
+                  <a
+                    class="text-xs text-gray-600 hover:text-primary font-medium leading-none block truncate max-w-[180px]"
+                    href="#"
+                    [title]="user.email"
+                  >
+                    {{ user.email }}
+                  </a>
+                </div>
+              </div>
+              <!-- <span class="badge badge-xs badge-primary badge-outline">
+                {{userInfos.role}}
+              </span> -->
+            </div>
+            <div class="menu-separator"></div>
+            <div class="flex flex-col">
+              <div class="menu-item">
+                <a class="menu-link" href="#">
+                  <span class="menu-icon">
+                    <i class="ki-filled ki-badge"> </i>
+                  </span>
+                  <span class="menu-title"> Mon profil </span>
+                </a>
+              </div>
+            </div>
+            <div class="menu-separator"></div>
+            <div class="flex flex-col">
+              <div class="menu-item px-4 py-1.5">
+                <a
+                  class="btn btn-sm btn-light justify-center"
+                  href="#"
+                  (click)="logout()"
+                >
+                  Déconnexion
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- End of Topbar -->
+  </div>
+  <!-- End of Container -->
+</header>
