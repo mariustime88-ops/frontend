@@ -1,0 +1,39 @@
+/* Styles spécifiques pour garantir la responsivité sur tous les écrans */
+.custom-width {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media screen and (max-width: 768px) {
+  .card {
+    padding: 0.5rem;
+  }
+}
+
+/* Masque complètement la barre de recherche dans le composant de tableau */
+::ng-deep app-data-table {
+  input[type="text"], 
+  .p-input-icon-left, 
+  input[placeholder*="Rechercher"],
+  .p-datatable-header {
+    display: none !important;
+  }
+}
+
+/* Correction du centrage vertical et de l'alignement dans les inputs et selects des modals */
+::ng-deep app-modal {
+  input.input-style,
+  select.input-style {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 42px; /* Ajuste selon la hauteur globale de tes inputs */
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    line-height: normal !important;
+  }
+
+  select.input-style {
+    appearance: none; /* Uniformise l'affichage du select selon les navigateurs */
+  }
+}

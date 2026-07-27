@@ -1,0 +1,10 @@
+.custom-width {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media screen and (max-width: 768px) {
+  .card {
+    padding: 0.5rem;
+  }
+}

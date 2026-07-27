@@ -69,6 +69,7 @@ export class DataTableComponent implements AfterContentInit {
   @Input() hideView: boolean = false;
   @Input() hideEdit: boolean = false;
   @Input() hideDelete: boolean = false;
+  @Input() hideSearch: boolean = false;
   @Input() headerStyle: { [key: string]: string } = {
     'background-color': '#0B74DDFF',
   };

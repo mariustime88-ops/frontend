@@ -3,33 +3,31 @@ import { AbstractCrudComponent } from '@app/cores/abstracts/abstract-crud-compon
 import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
 
-export interface Departement {
+export interface Metier {
   id: number;
-  code: string;
+  code?: string;
   libelle: string;
   created_at?: string;
   updated_at?: string;
 }
 
 @Component({
-  selector: 'app-departements',
+  selector: 'app-metiers',
   standalone: true,
   imports: [CrudImports],
-  templateUrl: './departements.component.html',
-  styleUrl: './departements.component.scss',
+  templateUrl: './metiers.component.html',
+  styleUrl: './metiers.component.scss',
 })
-export class DepartementsComponent extends AbstractCrudComponent<Departement> implements OnInit {
-  override resourceName: string = 'departements';
-  override modalId: string = 'departementsModal';
-  override deleteId: string = 'delete_departements';
+export class MetiersComponent extends AbstractCrudComponent<Metier> implements OnInit {
+  override resourceName: string = 'metiers';
+  override modalId: string = 'metierModal';
+  override deleteId: string = 'delete_metier';
 
   columns: Column[] = [
     {
       field: 'libelle',
-      header: 'Nom du Département',
+      header: 'Nom du métier',
       filterType: 'text',
     },
   ];
-
-  globalFilterFields = ['libelle', 'code'];
 }

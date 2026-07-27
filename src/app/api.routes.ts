@@ -4,4 +4,16 @@ export enum ApiRoutes {
   DEPARTEMENTS = 'departements',
   COMMUNES = 'communes',
   ARRONDISSEMENTS = 'arrondissements',
+  QUARTIERS_VILLAGES = 'quartiers-villages',
+  GUPS = 'gups  ',
+  CENTRE_SANTE = 'centre-sante',
+  METIERS = 'Metiers  ',
+  TYPES_HANDICAPS = 'types-handicaps',
+  TAUX_HANDICAPS = 'taux-handicaps',
+  TYPES_KITS = 'types-kits',
+  TYPES_SOINS = 'types-soins',
+  PROFESSIONS = 'professions',
+  UTILISATEURS = 'utilisateurs',
+  SESSIONS = 'sessions',
+
 }

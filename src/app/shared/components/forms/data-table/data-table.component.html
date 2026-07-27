@@ -23,8 +23,8 @@
             <ng-content select="[tableLeftContent]"></ng-content>
           </div>
 
-          <p-iconfield iconPosition="left" class="ml-auto">
-            <p-inputicon>
+<p-iconfield *ngIf="!hideSearch" iconPosition="left" class="ml-auto">
+              <p-inputicon>
               <i class="pi pi-search"></i>
             </p-inputicon>
             <input

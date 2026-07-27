@@ -1,0 +1,19 @@
+/* Masque la barre de recherche à l'intérieur de ce composant spécifique */
+::ng-deep app-data-table {
+  input[type="text"], 
+  .p-input-icon-left, 
+  input[placeholder*="Rechercher"] {
+    display: none !important;
+  }
+}
+
+.custom-width {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media screen and (max-width: 768px) {
+  .card {
+    padding: 0.5rem;
+  }
+}

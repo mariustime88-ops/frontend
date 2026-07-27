@@ -3,33 +3,32 @@ import { AbstractCrudComponent } from '@app/cores/abstracts/abstract-crud-compon
 import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
 
-export interface Departement {
+export interface TypeSoin {
   id: number;
-  code: string;
   libelle: string;
   created_at?: string;
   updated_at?: string;
 }
 
 @Component({
-  selector: 'app-departements',
+  selector: 'app-types-soins',
   standalone: true,
   imports: [CrudImports],
-  templateUrl: './departements.component.html',
-  styleUrl: './departements.component.scss',
+  templateUrl: './types-soins.component.html',
+  styleUrl: './types-soins.component.scss',
 })
-export class DepartementsComponent extends AbstractCrudComponent<Departement> implements OnInit {
-  override resourceName: string = 'departements';
-  override modalId: string = 'departementsModal';
-  override deleteId: string = 'delete_departements';
+export class TypesSoinsComponent extends AbstractCrudComponent<TypeSoin> implements OnInit {
+  override resourceName: string = 'type_soins'; // À adapter selon la route exacte de ton API backend
+  override modalId: string = 'typesSoinsModal';
+  override deleteId: string = 'delete_types_soins';
 
   columns: Column[] = [
     {
       field: 'libelle',
-      header: 'Nom du Département',
+      header: 'Type de soin',
       filterType: 'text',
     },
   ];
 
-  globalFilterFields = ['libelle', 'code'];
+  globalFilterFields = ['libelle'];
 }

@@ -1,0 +1,21 @@
+/* Styles spécifiques pour garantir la responsivité sur tous les écrans */
+.custom-width {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media screen and (max-width: 768px) {
+  .card {
+    padding: 0.5rem;
+  }
+}
+
+/* Masque complètement la barre de recherche dans le composant de tableau */
+::ng-deep app-data-table {
+  input[type="text"], 
+  .p-input-icon-left, 
+  input[placeholder*="Rechercher"],
+  .p-datatable-header {
+    display: none !important;
+  }
+}

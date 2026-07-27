@@ -3,7 +3,7 @@ import { AbstractCrudComponent } from '@app/cores/abstracts/abstract-crud-compon
 import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
 
-export interface Arrondissement {
+export interface CentreSante {
   id: number;
   code?: string;
   libelle: string;
@@ -17,21 +17,21 @@ export interface Arrondissement {
 }
 
 @Component({
-  selector: 'app-arrondissements',
+  selector: 'app-centre-sante',
   standalone: true,
   imports: [CrudImports],
-  templateUrl: './arrondissements.component.html',
-  styleUrl: './arrondissements.component.scss',
+  templateUrl: './centre-sante.component.html',
+  styleUrl: './centre-sante.component.scss',
 })
-export class ArrondissementsComponent extends AbstractCrudComponent<Arrondissement> implements OnInit {
-  override resourceName: string = 'arrondissements';
-  override modalId: string = 'arrondissementsModal';
-  override deleteId: string = 'delete_arrondissements';
+export class CentreSanteComponent extends AbstractCrudComponent<CentreSante> implements OnInit {
+  override resourceName: string = 'centre_santes'; // Vérifiez si votre route API est 'centres-sante' ou 'centre-sante'
+  override modalId: string = 'centreSanteModal';
+  override deleteId: string = 'delete_centre_sante';
 
   columns: Column[] = [
     {
       field: 'libelle',
-      header: "Nom de l'Arrondissement",
+      header: 'Nom du centre de santé',
       filterType: 'text',
     },
     {
@@ -43,7 +43,7 @@ export class ArrondissementsComponent extends AbstractCrudComponent<Arrondisseme
 
   globalFilterFields = ['libelle', 'commune.libelle'];
 
-  protected override afterDataLoaded(items: Arrondissement[]): void {
+  protected override afterDataLoaded(items: CentreSante[]): void {
     items.forEach((item) => {
       if (item.commune_id && (!item.commune || !item.commune.libelle)) {
         item.commune = {

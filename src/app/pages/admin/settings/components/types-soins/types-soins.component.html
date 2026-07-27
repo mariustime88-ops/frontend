@@ -1,0 +1,130 @@
+<app-admin-layout>
+  <div>
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <h1 class="font-bold text-lg text-gray-900">Types de soin</h1>
+      <button
+        class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300"
+        attr.data-modal-toggle="#{{ modalId }}"
+        (click)="showAddForm()"
+      >
+        <i class="fas fa-plus-circle"></i>
+        Ajouter un type de soin
+      </button>
+    </div>
+    <div class="card custom-width">
+      <app-data-table
+        title="Liste des types de soin"
+        [data]="data"
+        [columns]="columns"
+        [loading]="loading"
+        [globalFilterFields]="globalFilterFields"
+        [rows]="5"
+        [rowsPerPageOptions]="[5, 10, 25, 50]"
+        [showActions]="true"
+        (onEdit)="editItem($event)"
+        (onDelete)="onDelete($event)"
+        [defaultPaginator]="false"
+        (onSearch)="search($event)"
+        [modalId]="modalId"
+        [deleteId]="deleteId"
+        [hideView]="true"
+        [filters]="filter"
+      >
+      </app-data-table>
+      <div class="flex justify-center my-4">
+        <app-custom-pagination
+          [page]="filter.page"
+          [totalItems]="filter.total"
+          [limit]="filter.per_page"
+          (pageChange)="changePage($event)"
+        ></app-custom-pagination>
+      </div>
+    </div>
+  </div>
+</app-admin-layout>
+
+<div class="modal self-center" data-modal="true" [id]="modalId">
+  <app-modal
+    [title]="editMode ? 'Modifier un type de soin' : 'Ajouter un type de soin'"
+  >
+    <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
+      <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+        <div class="space-y-4 gap-4">
+          <div class="field">
+            <label for="libelle" class="font-semibold"
+              >Libellé <span class="text-red-700">*</span></label
+            >
+            <div class="mt-1">
+              <input
+                pInputText
+                type="text"
+                [(ngModel)]="currentItem.libelle"
+                name="libelle"
+                placeholder="Ex: Consultation générale"
+                validate
+                required
+                class="input-style"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer p-5 border-t border-gray-200">
+        <div class="flex justify-end gap-4">
+          <p-progressSpinner
+            *ngIf="processing"
+            [style]="{ width: '40px', height: '40px' }"
+          ></p-progressSpinner>
+          <p-button
+            icon="fas fa-floppy-disk"
+            label="Enregistrer"
+            styleClass="p-button-success"
+            [disabled]="processing"
+            type="submit"
+          ></p-button>
+        </div>
+      </div>
+    </form>
+  </app-modal>
+</div>
+
+<div class="modal self-center" data-modal="true" [id]="deleteId">
+  <app-modal title="Supprimer un type de soin" [forDelete]="true">
+    <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+      <p>
+        Vous êtes sur le point de supprimer le type de soin
+        <strong>{{ currentItem.libelle }}</strong>.
+      </p>
+      <p>Voulez-vous continuer ?</p>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end gap-4">
+        <img
+          *ngIf="processing"
+          src="assets/images/loader.gif"
+          width="40"
+          alt="Chargement"
+        />
+        <button
+          type="button"
+          class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
+          data-modal-dismiss="true"
+        >
+          <i class="fas fa-times mr-2"></i>
+          Annuler
+        </button>
+        <button
+          type="button"
+          [disabled]="processing"
+          class="btn text-white bg-red-800 hover:bg-white hover:text-red-800 outline outline-1 hover:outline-red-800 transition-all duration-300"
+          (click)="deleteItem(currentItem)"
+        >
+          <i class="fas fa-trash mr-2"></i>
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<p-toast></p-toast>
