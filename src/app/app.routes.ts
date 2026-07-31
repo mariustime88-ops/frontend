@@ -17,6 +17,18 @@ import { ProfessionsComponent } from './pages/admin/settings/components/professi
 import { UtilisateursComponent } from './pages/admin/settings/components/utilisateurs/utilisateurs.component';
 import { SessionsComponent } from './pages/admin/settings/components/sessions/sessions.component';
 
+import { CartesComponent } from './pages/admin/base/components/cartes/cartes.component';
+import { DemandeursComponent } from './pages/admin/base/components/demandeurs/demandeurs.component';
+import { EtudiantshandsComponent } from './pages/admin/base/components/etudiantshands/etudiantshands.component';
+import { DemandescreComponent } from './pages/admin/base/components/demandescre/demandescre.component';
+import { DemandesinsComponent } from './pages/admin/base/components/demandesins/demandesins.component';
+import { EtablissementsComponent } from './pages/admin/base/components/etablissements/etablissements.component';
+import { RendezvousComponent } from './pages/admin/base/components/rendezvous/rendezvous.component';
+import { AidesComponent } from './pages/admin/base/components/aides/aides.component';
+
+import { DossiernaisComponent } from './pages/admin/base/components/dossiernais/dossiernais.component';
+
+
 export const routes: Routes = [
   {
     path: '',
@@ -87,4 +99,43 @@ export const routes: Routes = [
     path: Paths.SESSIONS,
     component: SessionsComponent,
   },
+  {
+    path: Paths.DEMANDEURS,
+    component: DemandeursComponent,
+  },
+  {
+    path: Paths.ETUDIANTSHANDS,
+    component: EtudiantshandsComponent,
+  },
+{
+    path: Paths.CARTES,
+    component: CartesComponent,
+  },
+  {
+    path: Paths.DEMANDESCRE,
+    component: DemandescreComponent,
+  },
+  {
+    path: Paths.DEMANDESINS,
+    component: DemandesinsComponent,
+  },
+  {
+    path: Paths.DOSSIERNAIS,
+    component: DossiernaisComponent,
+  },
+  {
+    path: Paths.AIDES,
+    component: AidesComponent,
+  },
+  {path: Paths.ETABLISSEMENTS, 
+    component: EtablissementsComponent},
+{
+    path: Paths.RENDEZVOUS,
+    component: RendezvousComponent,
+  },
+  {
+    path: Paths.DEMANDEURS,
+    component: DemandeursComponent,
+  }
+
 ];

@@ -1,4 +1,5 @@
 // app/shared/components/ui/modal/modal.component.ts
+
 import {
   Component,
   Input,
@@ -24,14 +25,13 @@ export class ModalComponent {
   @Input() maxWidth: string = '600px';
   @Input() maxHeight: string = '90vh';
   @Input() showSaveButton: boolean = true;
-  @Input() forDelete: boolean = false;
   @Input() forSuccess: boolean = false;
   @Input() forInfo: boolean = false;
   @Input() saveButtonText: string = 'Enregistrer';
   @Input() saveButtonIcon: string = 'fas fa-floppy-disk';
   @Input() loading: boolean = false;
   @Input() hasCustomFooter: boolean = true;
-
+@Input() forDelete: boolean = false;
   @Output() onSave = new EventEmitter<NgForm>();
   @Output() onClose = new EventEmitter<void>();
 

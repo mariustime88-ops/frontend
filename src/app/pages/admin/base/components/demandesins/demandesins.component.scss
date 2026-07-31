@@ -1,0 +1,8 @@
+/* Styles spécifiques pour la gestion des demandes d'installation */
+.custom-width {
+  width: 100%;
+}
+
+.select-filter, .input-style {
+  @apply border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--tw-main-blue)];
+}

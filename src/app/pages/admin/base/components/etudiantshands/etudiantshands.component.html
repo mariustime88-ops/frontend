@@ -1,0 +1,373 @@
+<app-admin-layout>
+  <div>
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <h1 class="font-bold text-lg text-gray-900">Base de données complète des étudiants handicapés</h1>
+      
+    </div>
+
+    <!-- Filtres -->
+    <div class="card custom-width p-4 mb-3">
+      <div class="flex flex-wrap items-center gap-3 mb-3">
+        <select [(ngModel)]="searchFilters.departement_id" (change)="onFilterDepartementChange()" class="select-filter">
+          <option value="">Tous les départements</option>
+          <option *ngFor="let d of departementsList" [value]="d.id">{{ d.libelle }}</option>
+        </select>
+
+        <select [(ngModel)]="searchFilters.commune_id" (change)="onFilterCommuneChange()" class="select-filter">
+          <option value="">Toutes les communes</option>
+          <option *ngFor="let c of communesFilterList" [value]="c.id">{{ c.libelle }}</option>
+        </select>
+
+        <select [(ngModel)]="searchFilters.arrondissement_id" class="select-filter">
+          <option value="">Tous les arrondissements</option>
+          <option *ngFor="let a of arrondissementsFilterList" [value]="a.id">{{ a.libelle }}</option>
+        </select>
+
+        <select [(ngModel)]="searchFilters.statut" class="select-filter">
+          <option value="">Avis</option>
+          <option value="1">Favorables</option>
+          <option value="2">Non favorables</option>
+          <option value="0">Non traités</option>
+        </select>
+
+        <select [(ngModel)]="searchFilters.paiement" class="select-filter">
+          <option value="">Paiement</option>
+          <option value="1">Payée</option>
+          <option value="0">Non payée</option>
+        </select>
+
+        <select [(ngModel)]="searchFilters.annee" class="select-filter">
+          <option value="">Années</option>
+          <option *ngFor="let y of years" [value]="y">{{ y }}</option>
+        </select>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <select [(ngModel)]="searchFilters.session_id" class="select-filter">
+          <option value="">Toutes les sessions</option>
+          <option *ngFor="let s of sessionsList" [value]="s.id">{{ s.libelle }}</option>
+        </select>
+
+        <button
+          type="button"
+          (click)="applyFilters()"
+          [disabled]="loading"
+          class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300 disabled:opacity-60"
+        >
+          <i class="fas fa-spinner fa-spin" *ngIf="loading"></i>
+          <i class="fas fa-search" *ngIf="!loading"></i>
+          Rechercher
+        </button>
+        <button
+          type="button"
+          (click)="resetFilters()"
+          class="btn text-white bg-red-600 hover:bg-white hover:text-red-600 outline outline-1 hover:outline-red-600 transition-all duration-300"
+        >
+          <i class="fas fa-times mr-1"></i>
+          Réinitialiser
+        </button>
+
+        <button
+          type="button"
+          (click)="exportExcel()"
+          [disabled]="exporting"
+          class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300 ml-auto"
+        >
+          <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
+          <i class="fas fa-file-excel" *ngIf="!exporting"></i>
+          Exporter
+        </button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card custom-width">
+      <app-data-table
+        title="Liste des étudiants handicapés"
+        [data]="data"
+        [columns]="columns"
+        [loading]="loading"
+        [globalFilterFields]="globalFilterFields"
+        [rows]="10"
+        [showActions]="true"
+        (onEdit)="editItem($event)"
+        (onDelete)="onDelete($event)"
+        [defaultPaginator]="false"
+        [modalId]="modalId"
+        [deleteId]="deleteId"
+        [hideView]="true"
+        [hideSearch]="true"
+        [filters]="filter"
+        [additionalActionsTemplate]="viewAction"
+      >
+      </app-data-table>
+
+      <div class="flex justify-center my-4">
+        <app-custom-pagination
+          [page]="filter['page']"
+          [totalItems]="filter['total']"
+          [limit]="filter['per_page']"
+          (pageChange)="changePage($event)"
+        ></app-custom-pagination>
+      </div>
+    </div>
+  </div>
+</app-admin-layout>
+
+<!-- Bouton Voir détails, ajouté avant Modifier/Supprimer -->
+<ng-template #viewAction let-item>
+  <button
+    pButton
+    type="button"
+    icon="pi pi-eye"
+    title="Voir détails"
+    attr.data-modal-toggle="#{{ viewDetailsId }}"
+    class="!w-7 !h-7 !p-1 !bg-blue-100 !text-blue-600 hover:!outline !outline-1 hover:!bg-white hover:!outline-blue-500 !rounded-md !flex !justify-center !items-center !transition-all !duration-200"
+    (click)="showDetails(item)"
+  ></button>
+</ng-template>
+
+<!-- Modal Voir détails -->
+<div class="modal self-center" data-modal="true" [id]="viewDetailsId">
+  <app-modal title="Détails de l'étudiant">
+    <div class="modal-body p-5 overflow-auto max-h-[70vh]" *ngIf="viewTarget">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div><span class="font-semibold">Nom et Prénoms :</span> {{ viewTarget.nomprenoms }}</div>
+        <div><span class="font-semibold">NPI :</span> {{ viewTarget.npi || '-' }}</div>
+        <div><span class="font-semibold">Date de naissance :</span> {{ viewTarget.date_naissance || '-' }}</div>
+        <div><span class="font-semibold">Sexe :</span> {{ viewTarget.sexe || '-' }}</div>
+        <div><span class="font-semibold">Contact :</span> {{ viewTarget.contact || '-' }}</div>
+        <div><span class="font-semibold">Année universitaire :</span> {{ viewTarget.annee_universitaire || '-' }}</div>
+        <div><span class="font-semibold">Département :</span> {{ viewTarget.departement?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Commune :</span> {{ viewTarget.commune?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Arrondissement :</span> {{ viewTarget.arrondissement?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Décision :</span> {{ viewTarget.statut == 1 ? 'Favorable' : (viewTarget.statut == 2 ? 'Non favorable' : 'Pas de décision') }}</div>
+        <div><span class="font-semibold">Paiement :</span> {{ viewTarget.paiement == 1 ? 'Payée' : 'Non payée' }}</div>
+      </div>
+
+      <div class="mt-4 border-t pt-3">
+        <p class="font-semibold text-sm mb-2">Documents fournis</p>
+        <div class="flex flex-wrap gap-3 text-sm">
+          <a *ngIf="viewTarget.fiche_inscription" [href]="fileUrl(viewTarget.fiche_inscription)" target="_blank" class="text-blue-600 underline">Fiche d'inscription</a>
+          <a *ngIf="viewTarget.carte_egalite" [href]="fileUrl(viewTarget.carte_egalite)" target="_blank" class="text-blue-600 underline">Carte d'égalité</a>
+          <a *ngIf="viewTarget.piece_identite" [href]="fileUrl(viewTarget.piece_identite)" target="_blank" class="text-blue-600 underline">Pièce d'identité</a>
+          <a *ngIf="viewTarget.photo_complete" [href]="fileUrl(viewTarget.photo_complete)" target="_blank" class="text-blue-600 underline">Photo complète</a>
+          <a *ngIf="viewTarget.rib" [href]="fileUrl(viewTarget.rib)" target="_blank" class="text-blue-600 underline">RIB</a>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end">
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<!-- MODAL AJOUT / MODIFICATION -->
+<div class="modal self-center" data-modal="true" [id]="modalId">
+  <app-modal [title]="editMode ? 'Modifier un étudiant' : 'Ajouter un étudiant'">
+<form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
+        <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+        <div class="space-y-4 gap-4">
+
+          <!-- Localisation en cascade -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Département</label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.departement_id" name="departement_id" (change)="onFormDepartementChange()" class="input-style">
+                  <option [ngValue]="null">Choisir un département</option>
+                  <option *ngFor="let d of departementsList" [ngValue]="d.id">{{ d.libelle }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label class="font-semibold">Commune</label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.commune_id" name="commune_id" (change)="onFormCommuneChange()" class="input-style">
+                  <option [ngValue]="null">Choisir une commune</option>
+                  <option *ngFor="let c of communesFormList" [ngValue]="c.id">{{ c.libelle }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label class="font-semibold">Arrondissement</label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.arrondissement_id" name="arrondissement_id" (change)="onFormArrondissementChange()" class="input-style">
+                  <option [ngValue]="null">Choisir un arrondissement</option>
+                  <option *ngFor="let a of arrondissementsFormList" [ngValue]="a.id">{{ a.libelle }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label class="font-semibold">Quartier/Village</label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.quartier_id" name="quartier_id" class="input-style">
+                  <option [ngValue]="null">Choisir un quartier</option>
+                  <option *ngFor="let q of quartiersFormList" [ngValue]="q.id">{{ q.libelle }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="font-semibold">Nom et Prénoms <span class="text-red-700">*</span></label>
+            <div class="mt-1">
+              <input pInputText type="text" [(ngModel)]="currentItem.nomprenoms" name="nomprenoms" class="input-style" validate required />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Date de naissance</label>
+              <div class="mt-1">
+                <input pInputText type="date" [(ngModel)]="currentItem.date_naissance" name="date_naissance" class="input-style" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="font-semibold">Sexe</label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.sexe" name="sexe" class="input-style">
+                  <option value="" disabled selected>Choisir</option>
+                  <option value="M">Masculin</option>
+                  <option value="F">Féminin</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">NPI</label>
+              <div class="mt-1">
+                <input pInputText type="text" [(ngModel)]="currentItem.npi" name="npi" class="input-style" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="font-semibold">Numéro de téléphone</label>
+              <div class="mt-1">
+                <input pInputText type="text" [(ngModel)]="currentItem.contact" name="contact" class="input-style" />
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="font-semibold">Année universitaire</label>
+            <div class="mt-1">
+              <input pInputText type="text" [(ngModel)]="currentItem.annee_universitaire" name="annee_universitaire" class="input-style" placeholder="Ex: 2025-2026" />
+            </div>
+          </div>
+
+          <!-- Décision et Paiement -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Décision</label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.statut" name="statut" class="input-style">
+                  <option [ngValue]="0">Non traité</option>
+                  <option [ngValue]="1">Favorable</option>
+                  <option [ngValue]="2">Non favorable</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label class="font-semibold">Paiement</label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.paiement" name="paiement" class="input-style">
+                  <option [ngValue]="0">Non payée</option>
+                  <option [ngValue]="1">Payée</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fichiers -->
+          <div class="field border rounded-lg p-4 bg-gray-50">
+            <label class="font-semibold block mb-3">Documents</label>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="field">
+                <label class="text-sm font-semibold">Fiche d'inscription</label>
+                <div class="mt-1">
+                  <input type="file" (change)="onFileSelected($event, 'fiche_inscription')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                </div>
+                <a *ngIf="editMode && currentItem.fiche_inscription && !selectedFiles['fiche_inscription']" [href]="fileUrl(currentItem.fiche_inscription)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Carte d'égalité</label>
+                <div class="mt-1">
+                  <input type="file" (change)="onFileSelected($event, 'carte_egalite')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                </div>
+                <a *ngIf="editMode && currentItem.carte_egalite && !selectedFiles['carte_egalite']" [href]="fileUrl(currentItem.carte_egalite)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Pièce d'identité</label>
+                <div class="mt-1">
+                  <input type="file" (change)="onFileSelected($event, 'piece_identite')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                </div>
+                <a *ngIf="editMode && currentItem.piece_identite && !selectedFiles['piece_identite']" [href]="fileUrl(currentItem.piece_identite)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Photo complète</label>
+                <div class="mt-1">
+                  <input type="file" (change)="onFileSelected($event, 'photo_complete')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                </div>
+                <a *ngIf="editMode && currentItem.photo_complete && !selectedFiles['photo_complete']" [href]="fileUrl(currentItem.photo_complete)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">RIB</label>
+                <div class="mt-1">
+                  <input type="file" (change)="onFileSelected($event, 'rib')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                </div>
+                <a *ngIf="editMode && currentItem.rib && !selectedFiles['rib']" [href]="fileUrl(currentItem.rib)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer p-5 border-t border-gray-200">
+        <div class="flex justify-end gap-4">
+          <p-progressSpinner *ngIf="processing" [style]="{ width: '40px', height: '40px' }"></p-progressSpinner>
+          <p-button icon="fas fa-floppy-disk" label="Enregistrer" styleClass="p-button-success" [disabled]="processing" type="submit"></p-button>
+        </div>
+      </div>
+    </form>
+  </app-modal>
+</div>
+
+<!-- Modal Suppression -->
+<div class="modal self-center" data-modal="true" [id]="deleteId">
+  <app-modal title="Supprimer un étudiant" [forDelete]="true">
+    <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+      <p>
+        Vous êtes sur le point de supprimer l'étudiant
+        <strong>{{ currentItem?.nomprenoms }}</strong>.
+      </p>
+      <p>Voulez-vous continuer ?</p>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end gap-4">
+        <img *ngIf="processing" src="assets/images/loader.gif" width="40" alt="Chargement" />
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
+          <i class="fas fa-times mr-2"></i>
+          Annuler
+        </button>
+        <button
+          type="button"
+          [disabled]="processing"
+          class="btn text-white bg-red-800 hover:bg-white hover:text-red-800 outline outline-1 hover:outline-red-800 transition-all duration-300"
+          (click)="deleteItem(currentItem)"
+        >
+          <i class="fas fa-trash mr-2"></i>
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<p-toast></p-toast>

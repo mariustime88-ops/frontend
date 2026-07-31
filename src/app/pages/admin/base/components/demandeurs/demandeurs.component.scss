@@ -1,6 +1,11 @@
 .custom-width {
   width: 100%;
   max-width: 100%;
+  overflow: visible !important;
+}
+
+.card {
+  overflow: visible !important;
 }
 
 @media screen and (max-width: 768px) {
@@ -9,41 +14,17 @@
   }
 }
 
-/* Style pour les inputs du modal */
 ::ng-deep app-modal {
-  input.input-style {
+  input.input-style,
+  select.input-style {
     display: flex;
     align-items: center;
     height: 42px;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
   }
-  
-  select.input-style {
-    display: block;
-    height: 42px;
-    padding: 8px 12px !important;
-    font-size: 14px;
-    line-height: 1.5;
-    color: #333;
-    background-color: #fff;
-    background-clip: padding-box;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    text-align: left;
-    text-align-last: left;
-    appearance: auto;
-    -webkit-appearance: auto;
-  }
-  
-  select.input-style option {
-    text-align: left;
-    padding: 8px 12px;
-  }
 }
 
-/* Style pour les selects de filtres */
 .select-filter {
   display: block !important;
   height: 42px;
@@ -91,12 +72,45 @@
   color: #166534;
 }
 
-::ng-deep .badge-pill-red {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
 ::ng-deep .badge-pill-gray {
   background: #f1f5f9;
   color: #475569;
+}
+
+/* Correction ciblée pour débloquer l'affichage du pop-up d'actions */
+::ng-deep {
+  .card, 
+  .custom-width, 
+  .p-datatable, 
+  .p-datatable-wrapper, 
+  .p-datatable-table, 
+  .p-datatable-tbody, 
+  tr, 
+  td {
+    overflow: visible !important;
+  }
+
+  td {
+    overflow: visible !important;
+    position: relative !important; /* Permet au menu absolute de se caler par rapport à la cellule d'action */
+  }
+}
+ td:last-child, td:has(.relative) {
+    position: relative !important;
+    overflow: visible !important;
+  }
+
+/* Positionnement exact : en haut et à droite des actions, au premier plan absolu */
+.popup-actions-menu, .dropdown-menu-actions {
+  position: absolute !important;
+  right: 100% !important; /* S'affiche à gauche du bouton (ou changez pour 0 pour l'aligner à droite) */
+  bottom: 100% !important; /* S'élève vers le haut */
+  margin-bottom: 5px;
+  z-index: 2147483647 !important; /* Valeur maximale pour passer par-dessus tout */
+  background: #ffffff !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25) !important;
+  border-radius: 8px;
+  overflow: visible !important;
+  min-width: 220px;
+  
 }

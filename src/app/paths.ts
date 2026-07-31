@@ -22,4 +22,13 @@ export enum Paths {
   PROFESSIONS = 'staff/parametres/professions',
   UTILISATEURS = 'staff/parametres/utilisateurs',
   SESSIONS = 'staff/parametres/sessions',
+  DEMANDEURS = 'staff/base/demandeurs',
+  CARTES = 'staff/base/cartes',
+  ETUDIANTSHANDS = 'staff/base/etudiantshands', 
+  DEMANDESCRE = 'staff/base/demandescre',
+  DEMANDESINS = 'staff/base/demandesins',
+  DOSSIERNAIS = 'staff/base/dossiernais',
+  ETABLISSEMENTS = 'staff/base/etablissements',
+  RENDEZVOUS = 'staff/base/rendezvous',
+  AIDES = 'staff/base/aides',
 }

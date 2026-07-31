@@ -1,0 +1,287 @@
+<app-admin-layout>
+  <div>
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <h1 class="font-bold text-lg text-gray-950">Base de données complète des demandes de cartes d'égalité</h1>
+    </div>
+
+   <!-- Filtres -->
+    <div class="card custom-width p-4 mb-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <!-- Groupe des selects et des boutons de recherche sur la même ligne -->
+        <div class="flex flex-wrap items-center gap-3 flex-1">
+          <select [(ngModel)]="searchFilters.departement_id" (change)="onFilterDepartementChange()" class="select-filter">
+            <option value="">Tous les départements</option>
+            <option *ngFor="let d of departementsList" [value]="d.id">{{ d.libelle }}</option>
+          </select>
+
+          <select [(ngModel)]="searchFilters.gups_id" class="select-filter">
+            <option value="">Tous les GUPS</option>
+            <option *ngFor="let g of gupsFilterList" [value]="g.id">{{ g.libelle }}</option>
+          </select>
+
+          <select [(ngModel)]="searchFilters.statut" class="select-filter">
+            <option value="">Statut / Avis</option>
+            <option value="1">Validé</option>
+            <option value="2">Rejeté</option>
+            <option value="0">Non traité</option>
+          </select>
+
+          <select [(ngModel)]="searchFilters.annee" class="select-filter">
+            <option value="">Années</option>
+            <option *ngFor="let y of years" [value]="y">{{ y }}</option>
+          </select>
+
+          <select [(ngModel)]="searchFilters.session_id" class="select-filter">
+            <option value="">Toutes les sessions</option>
+            <option *ngFor="let s of sessionsList" [value]="s.id">{{ s.libelle }}</option>
+          </select>
+
+          <button
+            type="button"
+            (click)="applyFilters()"
+            [disabled]="loading"
+            class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300 disabled:opacity-60"
+          >
+            <i class="fas fa-spinner fa-spin" *ngIf="loading"></i>
+            <i class="fas fa-search" *ngIf="!loading"></i>
+            Rechercher
+          </button>
+          
+          <button
+            type="button"
+            (click)="resetFilters()"
+            class="btn text-white bg-red-600 hover:bg-white hover:text-red-600 outline outline-1 hover:outline-red-600 transition-all duration-300"
+          >
+            <i class="fas fa-times mr-1"></i>
+            Réinitialiser
+          </button>
+        </div>
+
+        <!-- Bouton Exporter isolé à droite -->
+        <div>
+          <button
+            type="button"
+            (click)="exportExcel()"
+            [disabled]="exporting"
+            class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
+          >
+            <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
+            <i class="fas fa-file-excel" *ngIf="!exporting"></i>
+            Exporter
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card custom-width">
+      <app-data-table
+        title="Liste des demandes de cartes d'égalité"
+        [data]="data"
+        [columns]="columns"
+        [loading]="loading"
+        [globalFilterFields]="globalFilterFields"
+        [rows]="10"
+        [showActions]="true"
+        (onEdit)="editItem($event)"
+        (onDelete)="onDelete($event)"
+        [defaultPaginator]="false"
+        [modalId]="modalId"
+        [deleteId]="deleteId"
+        [hideView]="true"
+        [hideSearch]="true"
+        [filters]="filter"
+        [additionalActionsTemplate]="viewAction"
+      >
+      </app-data-table>
+
+      <div class="flex justify-center my-4">
+        <app-custom-pagination
+          [page]="filter['page']"
+          [totalItems]="filter['total']"
+          [limit]="filter['per_page']"
+          (pageChange)="changePage($event)"
+        ></app-custom-pagination>
+      </div>
+    </div>
+  </div>
+</app-admin-layout>
+
+<!-- Boutón Voir détails -->
+<ng-template #viewAction let-item>
+  <button
+    pButton
+    type="button"
+    icon="pi pi-eye"
+    title="Voir détails"
+    attr.data-modal-toggle="#{{ viewDetailsId }}"
+    class="!w-7 !h-7 !p-1 !bg-blue-100 !text-blue-600 hover:!outline !outline-1 hover:!bg-white hover:!outline-blue-500 !rounded-md !flex !justify-center !items-center !transition-all !duration-200"
+    (click)="showDetails(item)"
+  ></button>
+</ng-template>
+
+<!-- Modal Voir détails -->
+<div class="modal self-center" data-modal="true" [id]="viewDetailsId">
+  <app-modal title="Détails de la demande">
+    <div class="modal-body p-5 overflow-auto max-h-[70vh]" *ngIf="viewTarget">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div><span class="font-semibold">Demandeur :</span> {{ viewTarget.personne?.nomprenoms || '-' }}</div>
+        <div><span class="font-semibold">NPI :</span> {{ viewTarget.personne?.npi || '-' }}</div>
+        <div><span class="font-semibold">Date de naissance :</span> {{ viewTarget.personne?.date_naissance || '-' }}</div>
+        <div><span class="font-semibold">Sexe :</span> {{ viewTarget.personne?.sexe || '-' }}</div>
+        <div><span class="font-semibold">Département :</span> {{ viewTarget.departement?.libelle || '-' }}</div>
+        <div><span class="font-semibold">GUPS :</span> {{ viewTarget.gups?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Statut :</span> {{ viewTarget.statut == 1 ? 'Validé' : (viewTarget.statut == 2 ? 'Rejeté' : 'Non traité') }}</div>
+        <div><span class="font-semibold">Motif :</span> {{ viewTarget.motif || '-' }}</div>
+      </div>
+
+      <div class="mt-4 border-t pt-3">
+        <p class="font-semibold text-sm mb-2">Documents fournis</p>
+        <div class="flex flex-wrap gap-3 text-sm">
+          <a *ngIf="viewTarget.rapport_enquete" [href]="fileUrl(viewTarget.rapport_enquete)" target="_blank" class="text-blue-600 underline">Rapport d'enquête</a>
+          <a *ngIf="viewTarget.certificat_medical" [href]="fileUrl(viewTarget.certificat_medical)" target="_blank" class="text-blue-600 underline">Certificat médical</a>
+          <a *ngIf="viewTarget.attestation_residence" [href]="fileUrl(viewTarget.attestation_residence)" target="_blank" class="text-blue-600 underline">Attestation de résidence</a>
+          <a *ngIf="viewTarget.piece_identite" [href]="fileUrl(viewTarget.piece_identite)" target="_blank" class="text-blue-600 underline">Pièce d'identité</a>
+          <a *ngIf="viewTarget.photo_complete" [href]="fileUrl(viewTarget.photo_complete)" target="_blank" class="text-blue-600 underline">Photo complète</a>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end">
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<!-- MODAL AJOUT / MODIFICATION -->
+<div class="modal self-center" data-modal="true" [id]="modalId">
+  <app-modal [title]="editMode ? 'Modifier une demande de carte' : 'Ajouter une demande de carte'">
+    <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
+      <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+        <div class="space-y-4 gap-4">
+
+          <!-- Localisation -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Département <span class="text-red-700">*</span></label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.departement_id" name="departement_id" (change)="onFormDepartementChange()" class="input-style" required>
+                  <option [ngValue]="null">Choisir un département</option>
+                  <option *ngFor="let d of departementsList" [ngValue]="d.id">{{ d.libelle }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label class="font-semibold">GUPS <span class="text-red-700">*</span></label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.gups_id" name="gups_id" class="input-style" required>
+                  <option [ngValue]="null">Choisir un GUPS</option>
+                  <option *ngFor="let g of gupsFormList" [ngValue]="g.id">{{ g.libelle }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Statut / Décision -->
+          <div class="field">
+            <label class="font-semibold">Statut</label>
+            <div class="mt-1">
+              <select [(ngModel)]="currentItem.statut" name="statut" class="input-style">
+                <option [ngValue]="0">Non traité</option>
+                <option [ngValue]="1">Validé</option>
+                <option [ngValue]="2">Rejeté</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="font-semibold">Motif</label>
+            <div class="mt-1">
+              <textarea pInputTextarea [(ngModel)]="currentItem.motif" name="motif" class="input-style" rows="2"></textarea>
+            </div>
+          </div>
+
+          <!-- Fichiers -->
+          <div class="field border rounded-lg p-4 bg-gray-50">
+            <label class="font-semibold block mb-3">Documents</label>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="field">
+                <label class="text-sm font-semibold">Rapport d'enquête</label>
+                <div class="mt-1">
+                  <input type="file" (change)="onFileSelected($event, 'rapport_enquete')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                </div>
+                <a *ngIf="editMode && currentItem.rapport_enquete && !selectedFiles['rapport_enquete']" [href]="fileUrl(currentItem.rapport_enquete)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Certificat médical</label>
+                <div class="mt-1">
+                  <input type="file" (change)="onFileSelected($event, 'certificat_medical')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                </div>
+                <a *ngIf="editMode && currentItem.certificat_medical && !selectedFiles['certificat_medical']" [href]="fileUrl(currentItem.certificat_medical)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Attestation de résidence</label>
+                <div class="mt-1">
+                  <input type="file" (change)="onFileSelected($event, 'attestation_residence')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                </div>
+                <a *ngIf="editMode && currentItem.attestation_residence && !selectedFiles['attestation_residence']" [href]="fileUrl(currentItem.attestation_residence)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Pièce d'identité</label>
+                <div class="mt-1">
+                  <input type="file" (change)="onFileSelected($event, 'piece_identite')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                </div>
+                <a *ngIf="editMode && currentItem.piece_identite && !selectedFiles['piece_identite']" [href]="fileUrl(currentItem.piece_identite)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Photo complète</label>
+                <div class="mt-1">
+                  <input type="file" (change)="onFileSelected($event, 'photo_complete')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                </div>
+                <a *ngIf="editMode && currentItem.photo_complete && !selectedFiles['photo_complete']" [href]="fileUrl(currentItem.photo_complete)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer p-5 border-t border-gray-200">
+        <div class="flex justify-end gap-4">
+          <p-progressSpinner *ngIf="processing" [style]="{ width: '40px', height: '40px' }"></p-progressSpinner>
+          <p-button icon="fas fa-floppy-disk" label="Enregistrer" styleClass="p-button-success" [disabled]="processing" type="submit"></p-button>
+        </div>
+      </div>
+    </form>
+  </app-modal>
+</div>
+
+<!-- Modal Suppression -->
+<div class="modal self-center" data-modal="true" [id]="deleteId">
+  <app-modal title="Supprimer la demande" [forDelete]="true">
+    <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+      <p>Vous êtes sur le point de supprimer cette demande de carte d'égalité.</p>
+      <p>Voulez-vous continuer ?</p>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end gap-4">
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
+          <i class="fas fa-times mr-2"></i> Annuler
+        </button>
+        <button
+          type="button"
+          [disabled]="processing"
+          class="btn text-white bg-red-800 hover:bg-white hover:text-red-800 outline outline-1 hover:outline-red-800 transition-all duration-300"
+          (click)="deleteItem(currentItem)"
+        >
+          <i class="fas fa-trash mr-2"></i> Supprimer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<p-toast></p-toast>

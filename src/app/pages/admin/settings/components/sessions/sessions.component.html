@@ -1,1 +1,255 @@
-<p>sessions works!</p>
+<app-admin-layout>
+  <div>
+    <!-- En-tête & bouton Ajouter -->
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <h1 class="font-bold text-lg text-gray-900">Liste des sessions</h1>
+      <button
+        class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300"
+        attr.data-modal-toggle="#{{ modalId }}"
+        (click)="showAddForm()"
+      >
+        <i class="fas fa-plus-circle"></i>
+        Ajouter une session
+      </button>
+    </div>
+
+    <!-- Table -->
+    <div class="card custom-width">
+      <app-data-table
+        title="Liste des sessions"
+        [data]="data"
+        [columns]="columns"
+        [loading]="loading"
+        [globalFilterFields]="globalFilterFields"
+        [rows]="10"
+        [showActions]="true"
+        (onEdit)="editItem($event)"
+        (onDelete)="onDelete($event)"
+        [defaultPaginator]="false"
+        [modalId]="modalId"
+        [deleteId]="deleteId"
+        [hideView]="true"
+        [hideSearch]="true"
+        [filters]="filter"
+        [additionalActionsTemplate]="toggleAction"
+      >
+      </app-data-table>
+
+      <div class="flex justify-center my-4">
+        <app-custom-pagination
+          [page]="filter['page']"
+          [totalItems]="filter['total']"
+          [limit]="filter['per_page']"
+          (pageChange)="changePage($event)"
+        ></app-custom-pagination>
+      </div>
+    </div>
+  </div>
+</app-admin-layout>
+
+<!-- Bouton Toggle (Activer/Désactiver) en jaune -->
+<ng-template #toggleAction let-item>
+  <button
+    pButton
+    type="button"
+    [icon]="item.is_actif ? 'pi pi-pause' : 'pi pi-play'"
+    [title]="item.is_actif ? 'Désactiver' : 'Activer'"
+    [disabled]="toggling"
+    attr.data-modal-toggle="#{{ toggleId }}"
+    class="!w-7 !h-7 !p-1 !bg-yellow-200/50 !text-yellow-600 hover:!outline !outline-1 hover:!bg-white hover:!outline-yellow-500 !rounded-md !flex !justify-center !items-center !transition-all !duration-200 !transform hover:!scale-105"
+    (click)="prepareToggle(item)"
+  ></button>
+</ng-template>
+
+<!-- Modal de confirmation Toggle -->
+<div class="modal self-center" data-modal="true" [id]="toggleId">
+  <app-modal
+    [title]="toggleTarget?.is_actif ? 'Désactiver une session' : 'Activer une session'"
+    [forDelete]="!toggleTarget?.is_actif"
+  >
+    <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+      <p>
+        Vous êtes sur le point de
+        <strong>{{ toggleTarget?.is_actif ? 'désactiver' : 'activer' }}</strong>
+        la session
+        <strong>{{ toggleTarget?.libelle }}</strong>.
+      </p>
+      <p *ngIf="!toggleTarget?.is_actif" class="text-sm text-green-600 mt-2">
+        ⚡ Cette session deviendra la session active.
+      </p>
+      <p *ngIf="toggleTarget?.is_actif" class="text-sm text-gray-500 mt-2">
+        Aucune session ne sera active après cette action.
+      </p>
+      <p>Voulez-vous continuer ?</p>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end gap-4">
+        <p-progressSpinner
+          *ngIf="toggling"
+          [style]="{ width: '40px', height: '40px' }"
+        ></p-progressSpinner>
+        <button
+          type="button"
+          class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
+          (click)="closeToggleModal()"
+        >
+          <i class="fas fa-times mr-2"></i>
+          Annuler
+        </button>
+        <button
+          type="button"
+          [disabled]="toggling"
+          class="btn text-white bg-yellow-500 hover:bg-white hover:text-yellow-500 outline outline-1 hover:outline-yellow-500 transition-all duration-300"
+          (click)="executeToggle()"
+        >
+          <i class="fas mr-2" [class.fa-pause]="toggleTarget?.is_actif" [class.fa-play]="!toggleTarget?.is_actif"></i>
+          {{ toggleTarget?.is_actif ? 'Désactiver' : 'Activer' }}
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<!-- MODAL AJOUT / MODIFICATION -->
+<div class="modal self-center" data-modal="true" [id]="modalId">
+  <app-modal [title]="editMode ? 'Modifier une session' : 'Enregistrement session'">
+    <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
+      <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+        <div class="space-y-4 gap-4">
+
+          <!-- Libellé -->
+          <div class="field">
+            <label for="libelle" class="font-semibold">Libellé <span class="text-red-700">*</span></label>
+            <div class="mt-1">
+              <input
+                pInputText
+                type="text"
+                [(ngModel)]="currentItem.libelle"
+                name="libelle"
+                class="input-style"
+                placeholder="Ex: Session N° 1"
+                validate
+                required
+              />
+            </div>
+          </div>
+
+          <!-- Date de début (date + heure séparées) -->
+          <div class="field">
+            <label class="font-semibold">Date de début <span class="text-red-700">*</span></label>
+            <div class="mt-1 flex gap-2">
+              <input
+                pInputText
+                type="date"
+                [(ngModel)]="startDatePart"
+                name="start_date_part"
+                class="input-style flex-1"
+                validate
+                required
+              />
+              <input
+                pInputText
+                type="time"
+                [(ngModel)]="startTimePart"
+                name="start_time_part"
+                class="input-style"
+                style="max-width: 130px;"
+                validate
+                required
+              />
+            </div>
+          </div>
+
+          <!-- Date de fin (date + heure séparées) -->
+          <div class="field">
+            <label class="font-semibold">Date de fin <span class="text-red-700">*</span></label>
+            <div class="mt-1 flex gap-2">
+              <input
+                pInputText
+                type="date"
+                [(ngModel)]="endDatePart"
+                name="end_date_part"
+                class="input-style flex-1"
+                validate
+                required
+              />
+              <input
+                pInputText
+                type="time"
+                [(ngModel)]="endTimePart"
+                name="end_time_part"
+                class="input-style"
+                style="max-width: 130px;"
+                validate
+                required
+              />
+            </div>
+          </div>
+
+          <!-- Statut -->
+          <div class="field flex items-center gap-2">
+           
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer p-5 border-t border-gray-200">
+        <div class="flex justify-end gap-4">
+          <p-progressSpinner
+            *ngIf="processing"
+            [style]="{ width: '40px', height: '40px' }"
+          ></p-progressSpinner>
+          <p-button
+            icon="fas fa-floppy-disk"
+            label="Enregistrer"
+            styleClass="p-button-success"
+            [disabled]="processing"
+            type="submit"
+          ></p-button>
+        </div>
+      </div>
+    </form>
+  </app-modal>
+</div>
+
+<!-- Modal Suppression -->
+<div class="modal self-center" data-modal="true" [id]="deleteId">
+  <app-modal title="Supprimer une session" [forDelete]="true">
+    <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+      <p>
+        Vous êtes sur le point de supprimer la session
+        <strong>{{ currentItem?.libelle }}</strong>.
+      </p>
+      <p>Voulez-vous continuer ?</p>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end gap-4">
+        <img
+          *ngIf="processing"
+          src="assets/images/loader.gif"
+          width="40"
+          alt="Chargement"
+        />
+        <button
+          type="button"
+          class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
+          data-modal-dismiss="true"
+        >
+          <i class="fas fa-times mr-2"></i>
+          Annuler
+        </button>
+        <button
+          type="button"
+          [disabled]="processing"
+          class="btn text-white bg-red-800 hover:bg-white hover:text-red-800 outline outline-1 hover:outline-red-800 transition-all duration-300"
+          (click)="deleteItem(currentItem)"
+        >
+          <i class="fas fa-trash mr-2"></i>
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<p-toast></p-toast>

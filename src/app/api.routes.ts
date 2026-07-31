@@ -15,5 +15,13 @@ export enum ApiRoutes {
   PROFESSIONS = 'professions',
   UTILISATEURS = 'utilisateurs',
   SESSIONS = 'sessions',
-
+  DEMANDEURS = 'demandeurs',
+  CARTES = 'cartes',
+  ETUDIANTSHANDS = 'etudiantshands',
+  DEMANDESCRE = 'demandescre',
+  DEMANDESINS = 'demandesins',
+  DOSSIERNAIS = 'dossiernais',
+  ETABLISSEMENTS = 'etablissements',
+  RENDEZVOUS = 'rendezvous',
+  AIDES = 'aides',
 }

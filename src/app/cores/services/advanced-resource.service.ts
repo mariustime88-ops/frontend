@@ -191,23 +191,34 @@ export class AdvancedResourceService {
   /**
    * Met à jour un élément
    */
-  updateResourceItem<T extends { id: number | string }>(
+ updateResourceItem<T extends { id: number | string }>(
     resourceName: string,
     item: T,
     setId: boolean = true,
   ): Observable<T> {
     let url = `${this.baseApiUrl}/${resourceName}`;
     if (setId) {
-      url += `/${item.id}`;
+      // Un FormData n'expose pas .id comme un objet normal : il faut
+      // passer par .get('id'), sinon l'URL devient ".../undefined".
+      const id = item instanceof FormData ? item.get('id') : item.id;
+      url += `/${id}`;
     }
+
+    if (item instanceof FormData) {
+      item.append('_method', 'PUT');
+      return this.http.post<T>(url, item).pipe(
+        tap((updatedItem) => {
+          this.updateCacheAfterModification(resourceName, updatedItem, "update");
+        }),
+      );
+    }
+
     return this.http.put<T>(url, item).pipe(
       tap((updatedItem) => {
-        // Mettre à jour le cache et les observables
         this.updateCacheAfterModification(resourceName, updatedItem, "update");
       }),
     );
   }
-
   /**
    * Supprime un élément
    */

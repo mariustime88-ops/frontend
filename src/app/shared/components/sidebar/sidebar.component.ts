@@ -12,8 +12,7 @@ import { ToastModule } from 'primeng/toast';
 
 @Component({
   selector: 'app-sidebar',
-  imports: [RouterLink, NgIf, NgFor, AsyncPipe, ToastModule],
-  providers: [MessageService],
+imports: [RouterLink, NgIf, NgFor, ToastModule],  providers: [MessageService],
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.scss',
 })
@@ -110,43 +109,48 @@ export class SidebarComponent implements OnInit {
         children: [
           {
             label: 'Demandeurs',
-           link: '-----',
+           link: 'staff/base/demandeurs',
             guarded: true,
           },
           {
             label: 'Étudiants handicapés',
-            link: '-----',
+            link: 'staff/base/etudiantshands',
             guarded: true,
           },
           {
-            label: "Dossiers naissance multiples",
-            link: '-----',
+            label: "Cartes d'égalité",
+            link: 'staff/base/cartes',
+            guarded: true,
+          },
+          {
+            label: ' Dossiers naissance multiple',
+            link: 'staff/base/dossiernais',
             guarded: true,
           },
           {
             label: "Demandes d'installation",
-            link: '-----',
+            link: 'staff/base/demandesins',
             guarded: true,
           },
          
           {
             label: 'Demandes de crédit',
-            link: '-----',
+            link: 'staff/base/demandescre',
             guarded: true,
           },
           {
             label: 'Rendez-vous',
-           link: '-----',
+           link: 'staff/base/rendezvous',
             guarded: true,
           },
           {
             label: 'Établissements inclusifs',
-            link: '-----',
+            link: 'staff/base/etablissementss',
             guarded: true,
           },
           {
             label: 'Aides Techniques de mobilité',
-            link: '-----',
+            link: 'staff/base/aides',
             guarded: true,
           },
         ],

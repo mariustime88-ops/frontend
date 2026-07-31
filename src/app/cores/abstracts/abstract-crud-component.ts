@@ -281,9 +281,11 @@ export abstract class AbstractCrudComponent<T extends BaseParameter>
     );
   }
 
-  updateItem(item: T): void {
-    if (!item.id) return;
-
+ updateItem(item: T): void {
+    // Un FormData n'expose pas .id comme un objet normal (même bug que
+    // dans updateResourceItem) — il faut passer par .get('id').
+    const itemId = item instanceof FormData ? (item as any).get('id') : item.id;
+    if (!itemId) return;
     this.processing = true;
     this.error = null;
 
@@ -487,6 +489,8 @@ export abstract class AbstractCrudComponent<T extends BaseParameter>
 
     console.log(itemToSubmit);
 
+    console.log('editMode:', this.editMode, '| id:', itemToSubmit?.id);
+
     for (const key in itemToSubmit) {
       if (itemToSubmit.hasOwnProperty(key)) {
         const value = itemToSubmit[key];
@@ -509,13 +513,18 @@ export abstract class AbstractCrudComponent<T extends BaseParameter>
       }
     }
 
+    // Important : on vérifie l'id AVANT de convertir en FormData, car un
+    // objet FormData n'expose pas de propriété .id — la vérifier après
+    // conversion faisait toujours passer en création, jamais en modification.
+    const isUpdate = this.editMode && !!itemToSubmit?.id;
+
     if (this.formData) {
       itemToSubmit = objectToFormData(itemToSubmit) as unknown as T;
     }
 
     console.log(itemToSubmit);
 
-    if (this.editMode && itemToSubmit?.id) {
+    if (isUpdate) {
       this.updateItem(itemToSubmit);
     } else {
       this.createItem(itemToSubmit);

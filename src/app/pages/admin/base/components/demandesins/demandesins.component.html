@@ -1,0 +1,332 @@
+<app-admin-layout>
+  <div>
+    <!-- En-tête & bouton Ajouter -->
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <h1 class="font-bold text-lg text-gray-900">Gestion des demandes d'installation</h1>
+      <button
+        class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300"
+        attr.data-modal-toggle="#{{ modalId }}"
+        (click)="showAddForm()"
+      >
+        <i class="fas fa-plus-circle"></i>
+        Ajouter une demande
+      </button>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card custom-width p-4 mb-3">
+      <div class="flex flex-wrap items-center gap-3">
+        <select [(ngModel)]="searchFilters.departement_id" (change)="onFilterDepartementChange()" class="select-filter">
+          <option value="">Tous les départements</option>
+          <option *ngFor="let d of departementsList" [value]="d.id">{{ d.libelle }}</option>
+        </select>
+
+        <select [(ngModel)]="searchFilters.commune_id" class="select-filter">
+          <option value="">Toutes les communes</option>
+          <option *ngFor="let c of communesFilterList" [value]="c.id">{{ c.libelle }}</option>
+        </select>
+
+        <select [(ngModel)]="searchFilters.annee" class="select-filter">
+          <option value="">Années</option>
+          <option *ngFor="let y of years" [value]="y">{{ y }}</option>
+        </select>
+
+        <select [(ngModel)]="searchFilters.situation_dossier" class="select-filter">
+          <option value="">Toutes les situations</option>
+          <option value="1">Validé / En cours</option>
+        </select>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3 mt-3">
+        <input
+          type="text"
+          [(ngModel)]="searchFilters.search"
+          placeholder="Rechercher..."
+          class="input-style"
+          style="width: 260px;"
+        />
+
+        <button
+          type="button"
+          (click)="applyFilters()"
+          [disabled]="loading"
+          class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300 disabled:opacity-60"
+        >
+          <i class="fas fa-spinner fa-spin" *ngIf="loading"></i>
+          <i class="fas fa-search" *ngIf="!loading"></i>
+          Rechercher
+        </button>
+        <button
+          type="button"
+          (click)="resetFilters()"
+          class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
+        >
+          <i class="fas fa-times mr-1"></i>
+          Réinitialiser
+        </button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card custom-width">
+      <app-data-table
+        title="Liste des demandes d'installation"
+        [data]="data"
+        [columns]="columns"
+        [loading]="loading"
+        [globalFilterFields]="globalFilterFields"
+        [rows]="10"
+        [showActions]="true"
+        (onEdit)="editItem($event)"
+        (onDelete)="onDelete($event)"
+        [defaultPaginator]="false"
+        [modalId]="modalId"
+        [deleteId]="deleteId"
+        [hideView]="true"
+        [hideSearch]="true"
+        [filters]="filter"
+        [additionalActionsTemplate]="extraActions"
+      >
+      </app-data-table>
+
+      <div class="flex justify-center my-4">
+        <app-custom-pagination
+          [page]="filter['page']"
+          [totalItems]="filter['total']"
+          [limit]="filter['per_page']"
+          (pageChange)="changePage($event)"
+        ></app-custom-pagination>
+      </div>
+    </div>
+  </div>
+</app-admin-layout>
+
+<!-- Actions supplémentaires : Voir détails -->
+<ng-template #extraActions let-item>
+  <button
+    pButton
+    type="button"
+    icon="pi pi-eye"
+    title="Voir détails"
+    attr.data-modal-toggle="#{{ viewDetailsId }}"
+    class="!w-7 !h-7 !p-1 !bg-blue-100 !text-blue-600 hover:!outline !outline-1 hover:!bg-white hover:!outline-blue-500 !rounded-md !flex !justify-center !items-center !transition-all !duration-200"
+    (click)="showDetails(item)"
+  ></button>
+</ng-template>
+
+<!-- Modal Voir détails -->
+<div class="modal self-center" data-modal="true" [id]="viewDetailsId">
+  <app-modal title="Détails de la demande d'installation">
+    <div class="modal-body p-5 overflow-auto max-h-[70vh]" *ngIf="viewTarget">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div><span class="font-semibold">Demandeur :</span> {{ viewTarget.personne?.nomprenoms || '-' }}</div>
+        Année : {{ viewTarget.annee_enreg || '-' }}
+        <div><span class="font-semibold">Contact :</span> {{ viewTarget.contact || '-' }}</div>
+        <div><span class="font-semibold">Montant demandé :</span> {{ viewTarget.montant_demande || '-' }}</div>
+        <div><span class="font-semibold">Montant accordé :</span> {{ viewTarget.montant_accorde || '-' }}</div>
+        <div><span class="font-semibold">Observation demande :</span> {{ viewTarget.observations_demande || '-' }}</div>
+        <div><span class="font-semibold">Observation enquête :</span> {{ viewTarget.observations_enquete || '-' }}</div>
+      </div>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end">
+        <button
+          type="button"
+          class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
+          data-modal-dismiss="true"
+        >
+          Fermer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<!-- MODAL AJOUT / MODIFICATION -->
+<div class="modal self-center" data-modal="true" [id]="modalId">
+  <app-modal [title]="editMode ? 'Modifier la demande d\'installation' : 'Ajouter une demande d\'installation'">
+    <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
+      <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+        <div class="space-y-4 gap-4">
+
+          <!-- Sélection du demandeur (si non pré-rempli par queryParams) -->
+<div class="field" *ngIf="!personnePreRemplie">
+              <label class="font-semibold">Demandeur <span class="text-red-700">*</span></label>
+            <div class="mt-1">
+              <select [(ngModel)]="currentItem.personne_id" name="personne_id" class="input-style" required>
+                <option [ngValue]="null">Sélectionner un demandeur</option>
+                <option *ngFor="let p of personnesList" [ngValue]="p.id">{{ p.nomprenoms }} (NPI: {{ p.npi || 'N/A' }})</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Département</label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.departement_id" name="departement_id" (change)="onFormDepartementChange()" class="input-style">
+                  <option [ngValue]="null">Choisir un département</option>
+                  <option *ngFor="let d of departementsList" [ngValue]="d.id">{{ d.libelle }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label class="font-semibold">Commune</label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.commune_id" name="commune_id" class="input-style">
+                  <option [ngValue]="null">Choisir une commune</option>
+                  <option *ngFor="let c of communesFormList" [ngValue]="c.id">{{ c.libelle }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">GUPS</label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.gups_id" name="gups_id" class="input-style">
+                  <option [ngValue]="null">Choisir un GUPS</option>
+                  <option *ngFor="let g of gupsList" [ngValue]="g.id">{{ g.libelle }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label class="font-semibold">Type de Kit</label>
+              <div class="mt-1">
+                <select [(ngModel)]="currentItem.type_kit_id" name="type_kit_id" class="input-style">
+                  <option [ngValue]="null">Choisir un type de kit</option>
+                  <option *ngFor="let tk of typesKitsList" [ngValue]="tk.id">{{ tk.libelle }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Année d'enregistrement</label>
+              <div class="mt-1">
+                <input pInputText type="number" [(ngModel)]="currentItem.annee_enreg" name="annee_enreg" class="input-style" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="font-semibold">Contact</label>
+              <div class="mt-1">
+                <input pInputText type="text" [(ngModel)]="currentItem.contact" name="contact" class="input-style" />
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Montant demandé</label>
+              <div class="mt-1">
+                <input pInputText type="number" [(ngModel)]="currentItem.montant_demande" name="montant_demande" class="input-style" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="font-semibold">Montant accordé</label>
+              <div class="mt-1">
+                <input pInputText type="number" [(ngModel)]="currentItem.montant_accorde" name="montant_accorde" class="input-style" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Section Fichiers / Documents justificatifs (PDF) -->
+          <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
+            <h3 class="font-semibold text-gray-800 text-sm">Documents justificatifs (Fichiers PDF)</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <label class="font-semibold block mb-1">Rapport d'enquête (PDF)</label>
+                <input type="file" (change)="onFileSelected($event, 'rapport_enquete_url')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Demande adressée au ministre (PDF)</label>
+                <input type="file" (change)="onFileSelected($event, 'demande_ministre')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Devis (PDF)</label>
+                <input type="file" (change)="onFileSelected($event, 'devis')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Document du projet (PDF)</label>
+                <input type="file" (change)="onFileSelected($event, 'document_projet')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Identifiant fiscal (PDF)</label>
+                <input type="file" (change)="onFileSelected($event, 'ident_fiscale')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Copie du RIB / SFD (PDF)</label>
+                <input type="file" (change)="onFileSelected($event, 'releve_bancaire')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Carte d'égalité / Récépissé (PDF)</label>
+                <input type="file" (change)="onFileSelected($event, 'carte_egalite')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Carte Nationale (PDF)</label>
+                <input type="file" (change)="onFileSelected($event, 'carte_national')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="font-semibold">Observation de la demande</label>
+            <div class="mt-1">
+              <textarea pInputText [(ngModel)]="currentItem.observations_demande" name="observations_demande" class="input-style" rows="3"></textarea>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="font-semibold">Observation de l'enquête</label>
+            <div class="mt-1">
+              <textarea pInputText [(ngModel)]="currentItem.observations_enquete" name="observations_enquete" class="input-style" rows="3"></textarea>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer p-5 border-t border-gray-200">
+        <div class="flex justify-end gap-4">
+          <p-progressSpinner *ngIf="processing" [style]="{ width: '40px', height: '40px' }"></p-progressSpinner>
+          <p-button icon="fas fa-floppy-disk" label="Enregistrer" styleClass="p-button-success" [disabled]="processing" type="submit"></p-button>
+        </div>
+      </div>
+    </form>
+  </app-modal>
+</div>
+
+<!-- Modal Suppression -->
+<div class="modal self-center" data-modal="true" [id]="deleteId">
+  <app-modal title="Supprimer une demande d'installation" [forDelete]="true">
+    <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+      <p>Voulez-vous vraiment supprimer cette demande d'installation ?</p>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end gap-4">
+        <button
+          type="button"
+          class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
+          data-modal-dismiss="true"
+        >
+          <i class="fas fa-times mr-2"></i>
+          Annuler
+        </button>
+        <button
+          type="button"
+          [disabled]="processing"
+          class="btn text-white bg-red-800 hover:bg-white hover:text-red-800 outline outline-1 hover:outline-red-800 transition-all duration-300"
+          (click)="deleteItem(currentItem)"
+        >
+          <i class="fas fa-trash mr-2"></i>
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<p-toast></p-toast>
