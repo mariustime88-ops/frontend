@@ -1,0 +1,107 @@
+.custom-width {
+  width: 100%;
+}
+
+.select-filter {
+  @apply px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500;
+
+  &:disabled {
+    @apply bg-gray-100 text-gray-400 cursor-not-allowed;
+  }
+}
+
+.input-style {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500;
+
+  &:disabled {
+    @apply bg-gray-100 text-gray-400 cursor-not-allowed;
+  }
+}
+
+.badge-pill {
+  @apply px-2.5 py-1 text-xs font-semibold rounded-full;
+}
+
+.badge-pill-green {
+  @apply bg-green-100 text-green-700;
+}
+
+.badge-pill-red {
+  @apply bg-red-100 text-red-700;
+}
+
+.badge-pill-orange {
+  @apply bg-orange-100 text-orange-700;
+}
+
+.badge-pill-gray {
+  @apply bg-gray-100 text-gray-700;
+}
+
+/* ===== Champs "combobox" avec recherche + liste déroulante cliquable =====
+   Utilisée à la fois dans la barre de filtres (liste) et dans le formulaire
+   (Département, Commune, GUPS, Sessions). */
+.search-combo-wrap {
+  position: relative;
+  min-width: 200px;
+
+  .select-filter,
+  .input-style {
+    width: 100%;
+    padding-right: 1.75rem;
+  }
+
+  .clear-icon {
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.7rem;
+    color: #9ca3af;
+    cursor: pointer;
+    z-index: 5;
+
+    &:hover {
+      color: #ef4444;
+    }
+  }
+
+  .search-dropdown {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 0.25rem 0;
+    margin: 0;
+    list-style: none;
+
+    li {
+      padding: 0.45rem 0.75rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: #374151;
+
+      &:hover {
+        background-color: #eff6ff;
+        color: #023e7a;
+      }
+
+      &.empty {
+        color: #9ca3af;
+        cursor: default;
+        font-style: italic;
+
+        &:hover {
+          background: none;
+        }
+      }
+    }
+  }
+}

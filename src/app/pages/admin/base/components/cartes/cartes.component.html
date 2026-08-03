@@ -1,87 +1,153 @@
-<app-admin-layout>
+<!-- ============ VUE LISTE ============ -->
+<app-admin-layout *ngIf="!showForm">
   <div>
     <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
-      <h1 class="font-bold text-lg text-gray-950">Base de données complète des demandes de cartes d'égalité</h1>
+      <h1 class="font-bold text-lg text-gray-900">
+        {{ sessionScoped
+            ? ('Session active : ' + (activeSession?.libelle || '—'))
+            : 'Base de données complète des demandes de cartes d\'égalité' }}
+      </h1>
+      <div class="flex gap-2">
+        <button
+          *ngIf="sessionScoped"
+          type="button"
+          (click)="showAddForm()"
+          class="btn text-white bg-blue-700 hover:bg-white hover:text-blue-700 outline outline-1 outline-blue-700 transition-all duration-300"
+        >
+          <i class="fas fa-plus"></i>
+          Ajouter
+        </button>
+        <button
+          type="button"
+          (click)="exportExcel()"
+          [disabled]="exporting"
+          class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
+        >
+          <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
+          <i class="fas fa-file-excel" *ngIf="!exporting"></i>
+          Exporter
+        </button>
+      </div>
     </div>
 
-   <!-- Filtres -->
+    <!-- ===================== Filtres (100% automatiques, pas de bouton) ===================== -->
     <div class="card custom-width p-4 mb-3">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <!-- Groupe des selects et des boutons de recherche sur la même ligne -->
-        <div class="flex flex-wrap items-center gap-3 flex-1">
-          <select [(ngModel)]="searchFilters.departement_id" (change)="onFilterDepartementChange()" class="select-filter">
-            <option value="">Tous les départements</option>
-            <option *ngFor="let d of departementsList" [value]="d.id">{{ d.libelle }}</option>
-          </select>
 
-          <select [(ngModel)]="searchFilters.gups_id" class="select-filter">
-            <option value="">Tous les GUPS</option>
-            <option *ngFor="let g of gupsFilterList" [value]="g.id">{{ g.libelle }}</option>
-          </select>
+      <!-- Vue "Session active" mais aucune session marquée en cours -->
+      <div *ngIf="sessionScoped && !activeSession" class="text-sm text-red-600 mb-3">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        Aucune session n'est actuellement en cours.
+      </div>
 
-          <select [(ngModel)]="searchFilters.statut" class="select-filter">
-            <option value="">Statut / Avis</option>
-            <option value="1">Validé</option>
-            <option value="2">Rejeté</option>
-            <option value="0">Non traité</option>
-          </select>
-
-          <select [(ngModel)]="searchFilters.annee" class="select-filter">
-            <option value="">Années</option>
-            <option *ngFor="let y of years" [value]="y">{{ y }}</option>
-          </select>
-
-          <select [(ngModel)]="searchFilters.session_id" class="select-filter">
-            <option value="">Toutes les sessions</option>
-            <option *ngFor="let s of sessionsList" [value]="s.id">{{ s.libelle }}</option>
-          </select>
-
-          <button
-            type="button"
-            (click)="applyFilters()"
-            [disabled]="loading"
-            class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300 disabled:opacity-60"
-          >
-            <i class="fas fa-spinner fa-spin" *ngIf="loading"></i>
-            <i class="fas fa-search" *ngIf="!loading"></i>
-            Rechercher
-          </button>
-          
-          <button
-            type="button"
-            (click)="resetFilters()"
-            class="btn text-white bg-red-600 hover:bg-white hover:text-red-600 outline outline-1 hover:outline-red-600 transition-all duration-300"
-          >
-            <i class="fas fa-times mr-1"></i>
-            Réinitialiser
-          </button>
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Département -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            placeholder="Tous les départements"
+            [(ngModel)]="filterGeo.departement.label"
+            (input)="onGeoInput('filterGeo', 'departement', filterGeo.departement.label)"
+            (focus)="onGeoFocus('filterGeo', 'departement')"
+            (blur)="onGeoBlur('filterGeo', 'departement')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.departement.id" (mousedown)="clearGeoOption('filterGeo', 'departement')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.departement.open">
+            <li *ngIf="filterGeo.departement.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let d of filterGeo.departement.filtered" (mousedown)="selectGeoOption('filterGeo', 'departement', d)">
+              {{ d.libelle }}
+            </li>
+          </ul>
         </div>
 
-        <!-- Bouton Exporter isolé à droite -->
-        <div>
-          <button
-            type="button"
-            (click)="exportExcel()"
-            [disabled]="exporting"
-            class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
-          >
-            <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
-            <i class="fas fa-file-excel" *ngIf="!exporting"></i>
-            Exporter
-          </button>
+        <!-- GUPS (dépend du département) -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            [placeholder]="isGeoDisabled('filterGeo','gups') ? 'Choisir un département d\'abord' : 'Tous les GUPS'"
+            [disabled]="isGeoDisabled('filterGeo','gups')"
+            [(ngModel)]="filterGeo.gups.label"
+            (input)="onGeoInput('filterGeo', 'gups', filterGeo.gups.label)"
+            (focus)="onGeoFocus('filterGeo', 'gups')"
+            (blur)="onGeoBlur('filterGeo', 'gups')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.gups.id" (mousedown)="clearGeoOption('filterGeo', 'gups')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.gups.open">
+            <li *ngIf="filterGeo.gups.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let g of filterGeo.gups.filtered" (mousedown)="selectGeoOption('filterGeo', 'gups', g)">
+              {{ g.libelle }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Statut décision -->
+        <select [(ngModel)]="searchFilters.statut_decision" (change)="onSimpleSelectChange()" class="select-filter">
+          <option value="">Statut (Décision)</option>
+          <option value="1">Validé</option>
+          <option value="2">Rejeté</option>
+          <option value="0">Non traité</option>
+        </select>
+
+        <!-- Année (date enregistrée) -->
+        <select [(ngModel)]="searchFilters.annee" (change)="onSimpleSelectChange()" class="select-filter">
+          <option value="" placeholder="Année (Enregistré)">Année (Enregistré)</option>
+          <option *ngFor="let y of years" [value]="y">{{ y }}</option>
+        </select>
+
+        <!-- Statut -->
+        <select [(ngModel)]="searchFilters.statut" (change)="onSimpleSelectChange()" class="select-filter">
+          <option value="">Statut</option>
+          <option value="1">Actif / Validé</option>
+          <option value="0">Inactif / Non traité</option>
+        </select>
+
+        <!-- Sessions : masqué en vue "Session active", déjà verrouillée dessus -->
+        <div class="search-combo-wrap" *ngIf="!sessionScoped">
+          <input
+            type="text"
+            class="select-filter"
+            placeholder="Toutes les sessions"
+            [(ngModel)]="searchFilters.session_label"
+            (input)="onSessionInput(searchFilters.session_label)"
+            (focus)="onSessionFocus()"
+            (blur)="onSessionBlur()"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="searchFilters.session_id" (mousedown)="clearSession()"></i>
+          <ul class="search-dropdown" *ngIf="simpleOpen.sessions">
+            <li *ngIf="simpleFiltered.sessions.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let s of simpleFiltered.sessions" (mousedown)="selectSession(s)">
+              {{ s.libelle }}
+            </li>
+          </ul>
         </div>
       </div>
     </div>
 
-    <!-- Table -->
+    <!-- ===================== Tableau ===================== -->
     <div class="card custom-width">
+      <!-- Barre de recherche maison, avec debounce -->
+      <div class="flex justify-between items-center px-4 pt-4">
+        <p class="font-semibold text-gray-700">Liste des demandes de cartes d'égalité</p>
+        <div class="relative w-72">
+          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input
+            type="text"
+            [(ngModel)]="searchFilters.search"
+            (ngModelChange)="onTableSearch($event)"
+            placeholder="Rechercher (nom, NPI, motif...)"
+            class="input-style !pl-9"
+          />
+        </div>
+      </div>
+
       <app-data-table
-        title="Liste des demandes de cartes d'égalité"
         [data]="data"
         [columns]="columns"
         [loading]="loading"
         [globalFilterFields]="globalFilterFields"
         [rows]="10"
+        [rowsPerPageOptions]="[5, 10, 25, 50]"
         [showActions]="true"
         (onEdit)="editItem($event)"
         (onDelete)="onDelete($event)"
@@ -107,7 +173,7 @@
   </div>
 </app-admin-layout>
 
-<!-- Boutón Voir détails -->
+<!-- Bouton Voir détails -->
 <ng-template #viewAction let-item>
   <button
     pButton
@@ -131,8 +197,9 @@
         <div><span class="font-semibold">Sexe :</span> {{ viewTarget.personne?.sexe || '-' }}</div>
         <div><span class="font-semibold">Département :</span> {{ viewTarget.departement?.libelle || '-' }}</div>
         <div><span class="font-semibold">GUPS :</span> {{ viewTarget.gups?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Année :</span> {{ viewTarget.annee || '-' }}</div>
         <div><span class="font-semibold">Statut :</span> {{ viewTarget.statut == 1 ? 'Validé' : (viewTarget.statut == 2 ? 'Rejeté' : 'Non traité') }}</div>
-        <div><span class="font-semibold">Motif :</span> {{ viewTarget.motif || '-' }}</div>
+        <div class="md:col-span-2"><span class="font-semibold">Motif :</span> {{ viewTarget.motif || '-' }}</div>
       </div>
 
       <div class="mt-4 border-t pt-3">
@@ -156,36 +223,82 @@
   </app-modal>
 </div>
 
-<!-- MODAL AJOUT / MODIFICATION -->
-<div class="modal self-center" data-modal="true" [id]="modalId">
-  <app-modal [title]="editMode ? 'Modifier une demande de carte' : 'Ajouter une demande de carte'">
-    <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
-      <div class="modal-body p-5 overflow-auto max-h-[65vh]">
-        <div class="space-y-4 gap-4">
+<!-- ============ VUE FORMULAIRE PLEIN ÉCRAN (Ajouter / Modifier) ============ -->
+<app-admin-layout *ngIf="showForm">
+  <div>
+    <div class="flex items-center gap-3 mb-4">
+      <button
+        type="button"
+        (click)="backToList()"
+        class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
+      >
+        <i class="fas fa-arrow-left mr-2"></i>
+        Retour à la liste
+      </button>
+      <h1 class="font-bold text-lg text-gray-900">
+        {{ editMode ? "Modifier la demande de carte" : "Ajouter une demande de carte" }}
+      </h1>
+    </div>
 
-          <!-- Localisation -->
+    <div class="card p-6">
+      <form #f="ngForm" (ngSubmit)="onSubmit()">
+        <div class="space-y-4 gap-4 max-w-4xl">
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="field">
-              <label class="font-semibold">Département <span class="text-red-700">*</span></label>
-              <div class="mt-1">
-                <select [(ngModel)]="currentItem.departement_id" name="departement_id" (change)="onFormDepartementChange()" class="input-style" required>
-                  <option [ngValue]="null">Choisir un département</option>
-                  <option *ngFor="let d of departementsList" [ngValue]="d.id">{{ d.libelle }}</option>
-                </select>
+              <label class="font-semibold">Département</label>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  placeholder="Rechercher un département..."
+                  [(ngModel)]="formGeo.departement.label"
+                  name="departement_label"
+                  (input)="onGeoInput('formGeo', 'departement', formGeo.departement.label)"
+                  (focus)="onGeoFocus('formGeo', 'departement')"
+                  (blur)="onGeoBlur('formGeo', 'departement')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.departement.id" (mousedown)="clearGeoOption('formGeo', 'departement')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.departement.open">
+                  <li *ngIf="formGeo.departement.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let d of formGeo.departement.filtered" (mousedown)="selectGeoOption('formGeo', 'departement', d)">
+                    {{ d.libelle }}
+                  </li>
+                </ul>
               </div>
             </div>
             <div class="field">
-              <label class="font-semibold">GUPS <span class="text-red-700">*</span></label>
-              <div class="mt-1">
-                <select [(ngModel)]="currentItem.gups_id" name="gups_id" class="input-style" required>
-                  <option [ngValue]="null">Choisir un GUPS</option>
-                  <option *ngFor="let g of gupsFormList" [ngValue]="g.id">{{ g.libelle }}</option>
-                </select>
+              <label class="font-semibold">GUPS</label>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  [placeholder]="isGeoDisabled('formGeo','gups') ? 'Choisir un département d\'abord' : 'Rechercher un GUPS...'"
+                  [disabled]="isGeoDisabled('formGeo','gups')"
+                  [(ngModel)]="formGeo.gups.label"
+                  name="gups_label"
+                  (input)="onGeoInput('formGeo', 'gups', formGeo.gups.label)"
+                  (focus)="onGeoFocus('formGeo', 'gups')"
+                  (blur)="onGeoBlur('formGeo', 'gups')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.gups.id" (mousedown)="clearGeoOption('formGeo', 'gups')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.gups.open">
+                  <li *ngIf="formGeo.gups.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let g of formGeo.gups.filtered" (mousedown)="selectGeoOption('formGeo', 'gups', g)">
+                    {{ g.libelle }}
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
 
-          <!-- Statut / Décision -->
+          <div class="field">
+            <label class="font-semibold">Année</label>
+            <div class="mt-1">
+              <input pInputText type="number" placeholder="2026-02-01" [(ngModel)]="currentItem.annee" name="annee" class="input-style" />
+            </div>
+          </div>
+
           <div class="field">
             <label class="font-semibold">Statut</label>
             <div class="mt-1">
@@ -200,7 +313,7 @@
           <div class="field">
             <label class="font-semibold">Motif</label>
             <div class="mt-1">
-              <textarea pInputTextarea [(ngModel)]="currentItem.motif" name="motif" class="input-style" rows="2"></textarea>
+              <textarea pInputText [(ngModel)]="currentItem.motif" name="motif" class="input-style" rows="2"></textarea>
             </div>
           </div>
 
@@ -247,17 +360,18 @@
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="modal-footer p-5 border-t border-gray-200">
-        <div class="flex justify-end gap-4">
+        <div class="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
           <p-progressSpinner *ngIf="processing" [style]="{ width: '40px', height: '40px' }"></p-progressSpinner>
+          <button type="button" (click)="backToList()" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300">
+            Annuler
+          </button>
           <p-button icon="fas fa-floppy-disk" label="Enregistrer" styleClass="p-button-success" [disabled]="processing" type="submit"></p-button>
         </div>
-      </div>
-    </form>
-  </app-modal>
-</div>
+      </form>
+    </div>
+  </div>
+</app-admin-layout>
 
 <!-- Modal Suppression -->
 <div class="modal self-center" data-modal="true" [id]="deleteId">

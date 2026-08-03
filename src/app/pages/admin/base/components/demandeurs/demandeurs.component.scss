@@ -25,6 +25,33 @@
   }
 }
 
+.input-style {
+  display: block;
+  width: 100%;
+  height: 42px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.input-style:focus {
+  border-color: #023e7a;
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(2, 62, 122, 0.25);
+}
+
+.input-style:disabled {
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .select-filter {
   display: block !important;
   height: 42px;
@@ -49,6 +76,12 @@
   border-color: #023E7A;
   outline: 0;
   box-shadow: 0 0 0 0.2rem rgba(2, 62, 122, 0.25);
+}
+
+.select-filter:disabled {
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
 .select-filter option {
@@ -79,38 +112,105 @@
 
 /* Correction ciblée pour débloquer l'affichage du pop-up d'actions */
 ::ng-deep {
-  .card, 
-  .custom-width, 
-  .p-datatable, 
-  .p-datatable-wrapper, 
-  .p-datatable-table, 
-  .p-datatable-tbody, 
-  tr, 
+  .card,
+  .custom-width,
+  .p-datatable,
+  .p-datatable-wrapper,
+  .p-datatable-table,
+  .p-datatable-tbody,
+  tr,
   td {
     overflow: visible !important;
   }
 
   td {
     overflow: visible !important;
-    position: relative !important; /* Permet au menu absolute de se caler par rapport à la cellule d'action */
+    position: relative !important;
   }
 }
- td:last-child, td:has(.relative) {
-    position: relative !important;
-    overflow: visible !important;
-  }
+td:last-child, td:has(.relative) {
+  position: relative !important;
+  overflow: visible !important;
+}
 
 /* Positionnement exact : en haut et à droite des actions, au premier plan absolu */
 .popup-actions-menu, .dropdown-menu-actions {
   position: absolute !important;
-  right: 100% !important; /* S'affiche à gauche du bouton (ou changez pour 0 pour l'aligner à droite) */
-  bottom: 100% !important; /* S'élève vers le haut */
+  right: 100% !important;
+  bottom: 100% !important;
   margin-bottom: 5px;
-  z-index: 2147483647 !important; /* Valeur maximale pour passer par-dessus tout */
+  z-index: 2147483647 !important;
   background: #ffffff !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25) !important;
   border-radius: 8px;
   overflow: visible !important;
   min-width: 220px;
-  
+}
+
+/* ===== Champs "combobox" avec recherche + liste déroulante cliquable =====
+   Utilisée à la fois dans la barre de filtres (liste) et dans le formulaire
+   (Département, Commune, Arrondissement, Quartier/Village, Sessions, Profession). */
+.search-combo-wrap {
+  position: relative;
+  min-width: 200px;
+
+  .select-filter,
+  .input-style {
+    width: 100%;
+    padding-right: 1.75rem;
+  }
+
+  .clear-icon {
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.7rem;
+    color: #9ca3af;
+    cursor: pointer;
+    z-index: 5;
+
+    &:hover {
+      color: #ef4444;
+    }
+  }
+
+  .search-dropdown {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 0.25rem 0;
+    margin: 0;
+    list-style: none;
+
+    li {
+      padding: 0.45rem 0.75rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: #374151;
+
+      &:hover {
+        background-color: #eff6ff;
+        color: #023e7a;
+      }
+
+      &.empty {
+        color: #9ca3af;
+        cursor: default;
+        font-style: italic;
+
+        &:hover {
+          background: none;
+        }
+      }
+    }
+  }
 }

@@ -28,6 +28,18 @@ import { AidesComponent } from './pages/admin/base/components/aides/aides.compon
 
 import { DossiernaisComponent } from './pages/admin/base/components/dossiernais/dossiernais.component';
 
+//import { CommunessComponent } from './pages/admin/statistiques/demandeurs/components/communess/communess.component';
+//import { DepartementssComponent } from './pages/admin/statistiques/demandeurs/components/communess/departementss.component';
+//import { SexesComponent } from './pages/admin/statisques/sexes/components/sexes/sexes.component';
+//import { DossiernaisComponent } from './pages/admin/base/components/dossiernais/dossiernais.component';
+//import { DossiernaisComponent } from './pages/admin/base/components/dossiernais/dossiernais.component';
+//import { DossiernaisComponent } from './pages/admin/base/components/dossiernais/dossiernais.component';
+//import { DossiernaisComponent } from './pages/admin/base/components/dossiernais/dossiernais.component';
+//import { DossiernaisComponent } from './pages/admin/base/components/dossiernais/dossiernais.component';
+//import { DossiernaisComponent } from './pages/admin/base/components/dossiernais/dossiernais.component';
+//import { DossiernaisComponent } from './pages/admin/base/components/dossiernais/dossiernais.component';
+//import { DossiernaisComponent } from './pages/admin/base/components/dossiernais/dossiernais.component';
+
 
 export const routes: Routes = [
   {
@@ -108,29 +120,60 @@ export const routes: Routes = [
     component: EtudiantshandsComponent,
   },
 {
-    path: Paths.CARTES,
-    component: CartesComponent,
-  },
+  path: Paths.CARTES,
+  component: CartesComponent,
+  data: { sessionScoped: false },
+},
+{
+  path: Paths.CARTES_SESSION,
+  component: CartesComponent,
+  data: { sessionScoped: true },
+},
   {
-    path: Paths.DEMANDESCRE,
-    component: DemandescreComponent,
-  },
+  path: Paths.DEMANDESCRE,
+  component: DemandescreComponent,
+  data: { sessionScoped: false },
+},
+{
+  path: Paths.DEMANDESCRE_SESSION,
+  component: DemandescreComponent,
+  data: { sessionScoped: true },
+},
   {
     path: Paths.DEMANDESINS,
     component: DemandesinsComponent,
   },
   {
-    path: Paths.DOSSIERNAIS,
-    component: DossiernaisComponent,
-  },
-  {
-    path: Paths.AIDES,
-    component: AidesComponent,
-  },
-  {path: Paths.ETABLISSEMENTS, 
-    component: EtablissementsComponent},
+  path: Paths.DOSSIERNAIS,
+  component: DossiernaisComponent,
+  data: { sessionScoped: false },
+},
 {
-    path: Paths.RENDEZVOUS,
+  path: Paths.DOSSIERNAIS_SESSION,
+  component: DossiernaisComponent,
+  data: { sessionScoped: true },
+},
+ {
+  path: Paths.AIDES,
+  component: AidesComponent,
+  data: { sessionScoped: false },
+},
+{
+  path: Paths.AIDES_SESSION,
+  component: AidesComponent,
+  data: { sessionScoped: true },
+},
+ {
+  path: Paths.ETABLISSEMENTS,
+  component: EtablissementsComponent,
+  data: { sessionScoped: false },
+},
+{
+  path: Paths.ETABLISSEMENTS_SESSION,
+  component: EtablissementsComponent,
+  data: { sessionScoped: true },
+},
+   { path: Paths.RENDEZVOUS,
     component: RendezvousComponent,
   },
   {

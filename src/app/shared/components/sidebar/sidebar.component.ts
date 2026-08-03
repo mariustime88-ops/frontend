@@ -57,18 +57,18 @@ export class SidebarComponent implements OnInit {
             icon: 'graduation-cap',
             guarded: true,
           },
-          {
-            label: "Cartes d'égalité",
-            link: 'staff/cartes-egalite',
-            icon: 'id-card',
-            guarded: true,
-          },
-          {
-            label: 'Dossiers naissance multiple',
-            link: 'staff/dossiers-naissance-multiple',
-            icon: 'folder',
-            guarded: true,
-          },
+         {
+  label: 'Cartes d\'égalité',
+  link: 'staff/session-active/cartes',
+  icon: 'folder',
+  guarded: true,
+},
+         {
+  label: 'Dossiers naissance multiple',
+  link: 'staff/session-active/dossiernais',
+  icon: 'folder',
+  guarded: true,
+},
           {
             label: "Demandes d'installation",
             link: 'staff/demandes-installation',
@@ -76,29 +76,29 @@ export class SidebarComponent implements OnInit {
             guarded: true,
           },
           {
-            label: 'Demandes de crédit',
-            link: 'staff/demandes-credit',
-            icon: 'hand-holding-usd',
-            guarded: true,
-          },
+  label: 'Demandes de crédit',
+  link: 'staff/session-active/demandescre',
+  icon: 'credit-card',
+  guarded: true,
+},
           {
             label: 'Rendez-vous',
             link: 'staff/rendez-vous',
             icon: 'calendar-alt',
             guarded: true,
           },
-          {
-            label: 'Établissements inclusifs',
-            link: 'staff/etablissements-inclusifs',
-            icon: 'building',
-            guarded: true,
-          },
-          {
-            label: 'Aides Techniques de mobilité',
-            link: 'staff/aides-techniques',
-            icon: 'wheelchair',
-            guarded: true,
-          },
+         {
+  label: 'Établissements inclusifs',
+  link: 'staff/session-active/etablissements',
+  icon: 'folder',
+  guarded: true,
+},
+        {
+  label: 'Aides Techniques de mobilité',
+  link: 'staff/session-active/aides',
+  icon: 'folder',
+  guarded: true,
+},
         ],
       },
       {
@@ -145,7 +145,7 @@ export class SidebarComponent implements OnInit {
           },
           {
             label: 'Établissements inclusifs',
-            link: 'staff/base/etablissementss',
+            link: 'staff/base/etablissements',
             guarded: true,
           },
           {

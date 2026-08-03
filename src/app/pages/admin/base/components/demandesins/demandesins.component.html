@@ -1,11 +1,10 @@
-<app-admin-layout>
+<!-- ============ VUE LISTE ============ -->
+<app-admin-layout *ngIf="!showForm">
   <div>
-    <!-- En-tête & bouton Ajouter -->
     <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
       <h1 class="font-bold text-lg text-gray-900">Gestion des demandes d'installation</h1>
       <button
         class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300"
-        attr.data-modal-toggle="#{{ modalId }}"
         (click)="showAddForm()"
       >
         <i class="fas fa-plus-circle"></i>
@@ -13,7 +12,7 @@
       </button>
     </div>
 
-    <!-- Filtres -->
+   <!-- Filtres automatiques (sans bouton réinitialiser) -->
     <div class="card custom-width p-4 mb-3">
       <div class="flex flex-wrap items-center gap-3">
         <select [(ngModel)]="searchFilters.departement_id" (change)="onFilterDepartementChange()" class="select-filter">
@@ -21,56 +20,65 @@
           <option *ngFor="let d of departementsList" [value]="d.id">{{ d.libelle }}</option>
         </select>
 
-        <select [(ngModel)]="searchFilters.commune_id" class="select-filter">
+        <select [(ngModel)]="searchFilters.commune_id" (change)="applyFilters()" class="select-filter">
           <option value="">Toutes les communes</option>
           <option *ngFor="let c of communesFilterList" [value]="c.id">{{ c.libelle }}</option>
         </select>
 
-        <select [(ngModel)]="searchFilters.annee" class="select-filter">
-          <option value="">Années</option>
-          <option *ngFor="let y of years" [value]="y">{{ y }}</option>
+        <select [(ngModel)]="searchFilters.gups_id" (change)="applyFilters()" class="select-filter">
+          <option value="">Tous les GUPS</option>
+          <option *ngFor="let g of gupsList" [value]="g.id">{{ g.libelle }}</option>
         </select>
 
-        <select [(ngModel)]="searchFilters.situation_dossier" class="select-filter">
-          <option value="">Toutes les situations</option>
-          <option value="1">Validé / En cours</option>
+        <!-- Filtre Type de Kit automatique -->
+        <select [(ngModel)]="searchFilters.type_kit_id" (change)="applyFilters()" class="select-filter">
+          <option value="">Tous les types de kits</option>
+          <option *ngFor="let tk of typesKitsList" [value]="tk.id">{{ tk.libelle }}</option>
         </select>
-      </div>
 
-      <div class="flex flex-wrap items-center gap-3 mt-3">
-        <input
-          type="text"
-          [(ngModel)]="searchFilters.search"
-          placeholder="Rechercher..."
-          class="input-style"
-          style="width: 260px;"
-        />
+        <!-- Filtre Toutes les sessions (remplace l'ancienne année) -->
+        <select [(ngModel)]="searchFilters.session" (change)="applyFilters()" class="select-filter">
+          <option value="">Toutes les sessions</option>
+          <option *ngFor="let s of sessionsList" [value]="s.id || s">{{ s.libelle || s }}</option>
+        </select>
 
-        <button
-          type="button"
-          (click)="applyFilters()"
-          [disabled]="loading"
-          class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300 disabled:opacity-60"
-        >
-          <i class="fas fa-spinner fa-spin" *ngIf="loading"></i>
-          <i class="fas fa-search" *ngIf="!loading"></i>
-          Rechercher
-        </button>
-        <button
-          type="button"
-          (click)="resetFilters()"
-          class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
-        >
-          <i class="fas fa-times mr-1"></i>
-          Réinitialiser
-        </button>
+        <select [(ngModel)]="searchFilters.situation_dossier" (change)="applyFilters()" class="select-filter">
+          <option value="">Toutes les décisions</option>
+          <option value="1">Appuyée</option>
+          <option value="0">Non appuyée</option>
+        </select>
       </div>
     </div>
 
     <!-- Table -->
     <div class="card custom-width">
+      <div class="flex justify-between items-center flex-wrap gap-2 px-4 pt-4">
+        <p class="font-semibold text-gray-700">Liste des demandes d'installation</p>
+        <div class="flex items-center gap-3">
+          <div class="relative w-72">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <input
+              type="text"
+              [ngModel]="searchFilters.search"
+              (ngModelChange)="onTableSearch($event)"
+              placeholder="Demandeur, NPI, contact..."
+              class="input-style !pl-9"
+            />
+          </div>
+          <button
+            type="button"
+            (click)="exportExcel()"
+            [disabled]="exporting"
+            class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
+          >
+            <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
+            <i class="fas fa-file-excel" *ngIf="!exporting"></i>
+            Exporter
+          </button>
+        </div>
+      </div>
+
       <app-data-table
-        title="Liste des demandes d'installation"
         [data]="data"
         [columns]="columns"
         [loading]="loading"
@@ -101,40 +109,100 @@
   </div>
 </app-admin-layout>
 
-<!-- Actions supplémentaires : Voir détails -->
+<!-- Actions supplémentaires : Marteau (appuyer/désappuyer) en premier, puis Voir détails -->
 <ng-template #extraActions let-item>
   <button
-    pButton
     type="button"
-    icon="pi pi-eye"
+    [title]="item.situation_dossier == 1 ? 'Désappuyer ce dossier' : 'Appuyer ce dossier'"
+    attr.data-modal-toggle="#{{ toggleId }}"
+    class="!w-7 !h-7 !p-1 !bg-purple-100 !text-purple-600 hover:!outline !outline-1 hover:!bg-white hover:!outline-purple-500 !rounded-md !flex !justify-center !items-center !transition-all !duration-200"
+    (click)="prepareToggle(item)"
+  >
+    <i class="fas fa-gavel text-xs"></i>
+  </button>
+
+  <button
+    type="button"
     title="Voir détails"
     attr.data-modal-toggle="#{{ viewDetailsId }}"
     class="!w-7 !h-7 !p-1 !bg-blue-100 !text-blue-600 hover:!outline !outline-1 hover:!bg-white hover:!outline-blue-500 !rounded-md !flex !justify-center !items-center !transition-all !duration-200"
     (click)="showDetails(item)"
-  ></button>
+  >
+    <i class="fas fa-eye text-xs"></i>
+  </button>
 </ng-template>
 
-<!-- Modal Voir détails -->
+<!-- Modal confirmation Appuyer / Désappuyer -->
+<div class="modal self-center" data-modal="true" [id]="toggleId">
+  <app-modal
+    [title]="toggleTarget?.situation_dossier == 1 ? 'Désappuyer ce dossier' : 'Appuyer ce dossier'"
+    [forDelete]="toggleTarget?.situation_dossier == 1"
+  >
+    <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+      <p>
+        Vous êtes sur le point de
+        <strong>{{ toggleTarget?.situation_dossier == 1 ? 'désappuyer' : 'appuyer' }}</strong>
+        le dossier de
+        <strong>{{ toggleTarget?.personne?.nomprenoms }}</strong>.
+      </p>
+      <p>Voulez-vous continuer ?</p>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end gap-4">
+        <p-progressSpinner *ngIf="toggling" [style]="{ width: '40px', height: '40px' }"></p-progressSpinner>
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" (click)="closeToggleModal()">
+          <i class="fas fa-times mr-2"></i> Annuler
+        </button>
+        <button
+          type="button"
+          [disabled]="toggling"
+          class="btn text-white bg-purple-600 hover:bg-white hover:text-purple-600 outline outline-1 hover:outline-purple-600 transition-all duration-300"
+          (click)="executeToggle()"
+        >
+          <i class="fas fa-gavel mr-2"></i>
+          {{ toggleTarget?.situation_dossier == 1 ? 'Désappuyer' : 'Appuyer' }}
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<!-- Modal Voir détails — TOUS les champs modifiables -->
 <div class="modal self-center" data-modal="true" [id]="viewDetailsId">
   <app-modal title="Détails de la demande d'installation">
     <div class="modal-body p-5 overflow-auto max-h-[70vh]" *ngIf="viewTarget">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         <div><span class="font-semibold">Demandeur :</span> {{ viewTarget.personne?.nomprenoms || '-' }}</div>
-        Année : {{ viewTarget.annee_enreg || '-' }}
+        <div><span class="font-semibold">NPI :</span> {{ viewTarget.personne?.npi || '-' }}</div>
+        <div><span class="font-semibold">Année d'enregistrement :</span> {{ viewTarget.annee_enreg || '-' }}</div>
         <div><span class="font-semibold">Contact :</span> {{ viewTarget.contact || '-' }}</div>
+        <div><span class="font-semibold">Département :</span> {{ viewTarget.departement?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Commune :</span> {{ viewTarget.commune?.libelle || '-' }}</div>
+        <div><span class="font-semibold">GUPS :</span> {{ viewTarget.gups?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Type de Kit :</span> {{ viewTarget.type_kit?.libelle || '-' }}</div>
         <div><span class="font-semibold">Montant demandé :</span> {{ viewTarget.montant_demande || '-' }}</div>
         <div><span class="font-semibold">Montant accordé :</span> {{ viewTarget.montant_accorde || '-' }}</div>
-        <div><span class="font-semibold">Observation demande :</span> {{ viewTarget.observations_demande || '-' }}</div>
-        <div><span class="font-semibold">Observation enquête :</span> {{ viewTarget.observations_enquete || '-' }}</div>
+        <div><span class="font-semibold">Décision :</span> {{ viewTarget.situation_dossier == 1 ? 'Appuyée' : 'Non appuyée' }}</div>
+        <div class="md:col-span-2"><span class="font-semibold">Observation demande :</span> {{ viewTarget.observations_demande || '-' }}</div>
+        <div class="md:col-span-2"><span class="font-semibold">Observation enquête :</span> {{ viewTarget.observations_enquete || '-' }}</div>
+      </div>
+
+      <div class="mt-4 border-t pt-3">
+        <p class="font-semibold text-sm mb-2">Documents fournis</p>
+        <div class="flex flex-wrap gap-3 text-sm">
+          <a *ngIf="viewTarget.rapport_enquete_url" [href]="fileUrl(viewTarget.rapport_enquete_url)" target="_blank" class="text-blue-600 underline">Rapport d'enquête</a>
+          <a *ngIf="viewTarget.demande_ministre" [href]="fileUrl(viewTarget.demande_ministre)" target="_blank" class="text-blue-600 underline">Demande au ministre</a>
+          <a *ngIf="viewTarget.devis" [href]="fileUrl(viewTarget.devis)" target="_blank" class="text-blue-600 underline">Devis</a>
+          <a *ngIf="viewTarget.ident_fiscale" [href]="fileUrl(viewTarget.ident_fiscale)" target="_blank" class="text-blue-600 underline">Identifiant fiscal</a>
+          <a *ngIf="viewTarget.releve_bancaire" [href]="fileUrl(viewTarget.releve_bancaire)" target="_blank" class="text-blue-600 underline">RIB / SFD</a>
+          <a *ngIf="viewTarget.carte_egalite" [href]="fileUrl(viewTarget.carte_egalite)" target="_blank" class="text-blue-600 underline">Carte d'égalité</a>
+          <a *ngIf="viewTarget.carte_national" [href]="fileUrl(viewTarget.carte_national)" target="_blank" class="text-blue-600 underline">Carte Nationale</a>
+        </div>
       </div>
     </div>
     <div class="modal-footer p-5 border-t border-gray-200">
       <div class="flex justify-end">
-        <button
-          type="button"
-          class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
-          data-modal-dismiss="true"
-        >
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
           Fermer
         </button>
       </div>
@@ -142,16 +210,29 @@
   </app-modal>
 </div>
 
-<!-- MODAL AJOUT / MODIFICATION -->
-<div class="modal self-center" data-modal="true" [id]="modalId">
-  <app-modal [title]="editMode ? 'Modifier la demande d\'installation' : 'Ajouter une demande d\'installation'">
-    <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
-      <div class="modal-body p-5 overflow-auto max-h-[65vh]">
-        <div class="space-y-4 gap-4">
+<!-- ============ VUE FORMULAIRE PLEIN ÉCRAN (Ajouter / Modifier) ============ -->
+<app-admin-layout *ngIf="showForm">
+  <div>
+    <div class="flex items-center gap-3 mb-4">
+      <button
+        type="button"
+        (click)="backToList()"
+        class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
+      >
+        <i class="fas fa-arrow-left mr-2"></i>
+        Retour à la liste
+      </button>
+      <h1 class="font-bold text-lg text-gray-900">
+        {{ editMode ? "Modifier la demande d'installation" : "Ajouter une demande d'installation" }}
+      </h1>
+    </div>
 
-          <!-- Sélection du demandeur (si non pré-rempli par queryParams) -->
-<div class="field" *ngIf="!personnePreRemplie">
-              <label class="font-semibold">Demandeur <span class="text-red-700">*</span></label>
+    <div class="card p-6">
+      <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
+        <div class="space-y-4 gap-4 max-w-4xl">
+
+          <div class="field" *ngIf="!personnePreRemplie">
+            <label class="font-semibold">Demandeur <span class="text-red-700">*</span></label>
             <div class="mt-1">
               <select [(ngModel)]="currentItem.personne_id" name="personne_id" class="input-style" required>
                 <option [ngValue]="null">Sélectionner un demandeur</option>
@@ -206,7 +287,7 @@
             <div class="field">
               <label class="font-semibold">Année d'enregistrement</label>
               <div class="mt-1">
-                <input pInputText type="number" [(ngModel)]="currentItem.annee_enreg" name="annee_enreg" class="input-style" />
+                <input pInputText type="number" placeholder="20-01-01" [(ngModel)]="currentItem.annee_enreg" name="annee_enreg" class="input-style" />
               </div>
             </div>
             <div class="field">
@@ -225,49 +306,52 @@
               </div>
             </div>
             <div class="field">
-              <label class="font-semibold">Montant accordé</label>
+              <label class="font-semibold">Numéro Momo MTN</label>
               <div class="mt-1">
                 <input pInputText type="number" [(ngModel)]="currentItem.montant_accorde" name="montant_accorde" class="input-style" />
               </div>
             </div>
           </div>
 
-          <!-- Section Fichiers / Documents justificatifs (PDF) -->
+          <!-- Fichiers : uniquement ceux qui existent réellement dans la base -->
           <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
-            <h3 class="font-semibold text-gray-800 text-sm">Documents justificatifs (Fichiers PDF)</h3>
-            
+            <h3 class="font-semibold text-gray-800 text-sm">Documents justificatifs</h3>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
-                <label class="font-semibold block mb-1">Rapport d'enquête (PDF)</label>
-                <input type="file" (change)="onFileSelected($event, 'rapport_enquete_url')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                <label class="font-semibold block mb-1">Rapport d'enquête</label>
+                <input type="file" (change)="onFileSelected($event, 'rapport_enquete_url')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                <a *ngIf="editMode && currentItem.rapport_enquete_url && !selectedFiles['rapport_enquete_url']" [href]="fileUrl(currentItem.rapport_enquete_url)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
               </div>
               <div>
-                <label class="font-semibold block mb-1">Demande adressée au ministre (PDF)</label>
-                <input type="file" (change)="onFileSelected($event, 'demande_ministre')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                <label class="font-semibold block mb-1">Demande adressée au ministre</label>
+                <input type="file" (change)="onFileSelected($event, 'demande_ministre')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                <a *ngIf="editMode && currentItem.demande_ministre && !selectedFiles['demande_ministre']" [href]="fileUrl(currentItem.demande_ministre)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
               </div>
               <div>
-                <label class="font-semibold block mb-1">Devis (PDF)</label>
-                <input type="file" (change)="onFileSelected($event, 'devis')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                <label class="font-semibold block mb-1">Devis</label>
+                <input type="file" (change)="onFileSelected($event, 'devis')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                <a *ngIf="editMode && currentItem.devis && !selectedFiles['devis']" [href]="fileUrl(currentItem.devis)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
               </div>
               <div>
-                <label class="font-semibold block mb-1">Document du projet (PDF)</label>
-                <input type="file" (change)="onFileSelected($event, 'document_projet')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                <label class="font-semibold block mb-1">Identifiant fiscal</label>
+                <input type="file" (change)="onFileSelected($event, 'ident_fiscale')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                <a *ngIf="editMode && currentItem.ident_fiscale && !selectedFiles['ident_fiscale']" [href]="fileUrl(currentItem.ident_fiscale)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
               </div>
               <div>
-                <label class="font-semibold block mb-1">Identifiant fiscal (PDF)</label>
-                <input type="file" (change)="onFileSelected($event, 'ident_fiscale')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                <label class="font-semibold block mb-1">Copie du RIB / SFD</label>
+                <input type="file" (change)="onFileSelected($event, 'releve_bancaire')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                <a *ngIf="editMode && currentItem.releve_bancaire && !selectedFiles['releve_bancaire']" [href]="fileUrl(currentItem.releve_bancaire)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
               </div>
               <div>
-                <label class="font-semibold block mb-1">Copie du RIB / SFD (PDF)</label>
-                <input type="file" (change)="onFileSelected($event, 'releve_bancaire')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                <label class="font-semibold block mb-1">Carte d'égalité / Récépissé</label>
+                <input type="file" (change)="onFileSelected($event, 'carte_egalite')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                <a *ngIf="editMode && currentItem.carte_egalite && !selectedFiles['carte_egalite']" [href]="fileUrl(currentItem.carte_egalite)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
               </div>
               <div>
-                <label class="font-semibold block mb-1">Carte d'égalité / Récépissé (PDF)</label>
-                <input type="file" (change)="onFileSelected($event, 'carte_egalite')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-              </div>
-              <div>
-                <label class="font-semibold block mb-1">Carte Nationale (PDF)</label>
-                <input type="file" (change)="onFileSelected($event, 'carte_national')" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                <label class="font-semibold block mb-1">Carte Nationale</label>
+                <input type="file" (change)="onFileSelected($event, 'carte_national')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                <a *ngIf="editMode && currentItem.carte_national && !selectedFiles['carte_national']" [href]="fileUrl(currentItem.carte_national)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
               </div>
             </div>
           </div>
@@ -285,19 +369,19 @@
               <textarea pInputText [(ngModel)]="currentItem.observations_enquete" name="observations_enquete" class="input-style" rows="3"></textarea>
             </div>
           </div>
-
         </div>
-      </div>
 
-      <div class="modal-footer p-5 border-t border-gray-200">
-        <div class="flex justify-end gap-4">
+        <div class="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
           <p-progressSpinner *ngIf="processing" [style]="{ width: '40px', height: '40px' }"></p-progressSpinner>
+          <button type="button" (click)="backToList()" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300">
+            Annuler
+          </button>
           <p-button icon="fas fa-floppy-disk" label="Enregistrer" styleClass="p-button-success" [disabled]="processing" type="submit"></p-button>
         </div>
-      </div>
-    </form>
-  </app-modal>
-</div>
+      </form>
+    </div>
+  </div>
+</app-admin-layout>
 
 <!-- Modal Suppression -->
 <div class="modal self-center" data-modal="true" [id]="deleteId">
@@ -307,13 +391,8 @@
     </div>
     <div class="modal-footer p-5 border-t border-gray-200">
       <div class="flex justify-end gap-4">
-        <button
-          type="button"
-          class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
-          data-modal-dismiss="true"
-        >
-          <i class="fas fa-times mr-2"></i>
-          Annuler
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
+          <i class="fas fa-times mr-2"></i> Annuler
         </button>
         <button
           type="button"
@@ -321,8 +400,7 @@
           class="btn text-white bg-red-800 hover:bg-white hover:text-red-800 outline outline-1 hover:outline-red-800 transition-all duration-300"
           (click)="deleteItem(currentItem)"
         >
-          <i class="fas fa-trash mr-2"></i>
-          Supprimer
+          <i class="fas fa-trash mr-2"></i> Supprimer
         </button>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@app/environments/environment';
+import { Paths } from '@app/paths';
 
 export interface Personne {
   id: number;
@@ -33,9 +34,52 @@ export interface Personne {
   departement?: { id: number; libelle: string };
   commune?: { id: number; libelle: string };
   arrondissement?: { id: number; libelle: string };
+  quartier?: { id: number; libelle: string };
+  profession?: { id: number; libelle: string };
   installation_accordee?: boolean;
   created_at?: string;
 }
+
+// Cascade géographique : Département -> Commune -> Arrondissement -> Quartier
+// (les filtres n'utilisent que les 3 premiers niveaux, comme avant ; le formulaire
+// utilise les 4 niveaux, comme pour les autres modules qu'on a déjà faits)
+type GeoLevel = 'departement' | 'commune' | 'arrondissement' | 'quartier';
+
+interface GeoState {
+  list: any[];
+  filtered: any[];
+  open: boolean;
+  label: string;
+  id: any;
+}
+
+function emptyGeoState(): GeoState {
+  return { list: [], filtered: [], open: false, label: '', id: '' };
+}
+
+function emptyGeo(): { [key in GeoLevel]: GeoState } {
+  return {
+    departement: emptyGeoState(),
+    commune: emptyGeoState(),
+    arrondissement: emptyGeoState(),
+    quartier: emptyGeoState(),
+  };
+}
+
+const FILTER_GEO_ORDER: GeoLevel[] = ['departement', 'commune', 'arrondissement'];
+const FORM_GEO_ORDER: GeoLevel[] = ['departement', 'commune', 'arrondissement', 'quartier'];
+const GEO_NEXT_RESOURCE: { [key in GeoLevel]?: string } = {
+  departement: 'communes',
+  commune: 'arrondissements',
+  arrondissement: 'quartiers',
+};
+const GEO_PARENT_PARAM: { [key in GeoLevel]?: string } = {
+  departement: 'departement_id',
+  commune: 'commune_id',
+  arrondissement: 'arrondissement_id',
+};
+
+type SimpleKey = 'sessions' | 'professions';
 
 @Component({
   selector: 'app-demandeurs',
@@ -52,36 +96,39 @@ export class DemandeursComponent extends AbstractCrudComponent<Personne> impleme
 
   protected apiHttp = inject(HttpClient);
 
-  // Listes pour les filtres
-  departementsList: any[] = [];
-  communesFilterList: any[] = [];
-  arrondissementsFilterList: any[] = [];
-  sessionsList: any[] = [];
-  years: number[] = [];
+  // Vue liste <-> formulaire plein écran (comme les autres modules)
+  showForm: boolean = false;
 
-  // Listes pour le formulaire (cascade indépendante des filtres)
-  communesFormList: any[] = [];
-  arrondissementsFormList: any[] = [];
-  quartiersFormList: any[] = [];
+  // Cascade géo : filtres (Département -> Commune -> Arrondissement)
+  filterGeo = emptyGeo();
+  // Cascade géo : formulaire (Département -> Commune -> Arrondissement -> Quartier)
+  formGeo = emptyGeo();
+
+  sessionsList: any[] = [];
   professionsList: any[] = [];
+  simpleFiltered: { [key in SimpleKey]: any[] } = { sessions: [], professions: [] };
+  simpleOpen: { [key in SimpleKey]: boolean } = { sessions: false, professions: false };
+  // Texte affiché dans le champ recherchable "Profession" du formulaire
+  professionLabel: string = '';
+
+  years: number[] = [];
 
   exporting: boolean = false;
   viewTarget: Personne | null = null;
-openDropdownId: number | null = null;
-dropdownItem: Personne | null = null;
-dropdownPosition: { top: number; left: number } = { top: 0, left: 0 };
+  openDropdownId: number | null = null;
+  dropdownItem: Personne | null = null;
+  dropdownPosition: { top: number; left: number } = { top: 0, left: 0 };
+
   searchFilters = {
     search: '',
-    departement_id: '',
-    commune_id: '',
-    arrondissement_id: '',
     annee: '',
-    session_id: '',
+    session_id: '' as any,
+    session_label: '',
     appuye: '',
   };
 
   columns: Column[] = [
-    { field: 'nomprenoms', header: 'Nom et Prénoms', filterType: 'text' },
+    { field: 'nomprenoms', header: 'Nomsss et Prénoms', filterType: 'text' },
     { field: 'departement.libelle', header: 'Département', filterType: 'text' },
     { field: 'age', header: 'Age', filterType: 'text' },
     { field: 'sexe', header: 'Sexe', filterType: 'text' },
@@ -98,9 +145,7 @@ dropdownPosition: { top: number; left: number } = { top: 0, left: 0 };
       filterType: 'text',
       htmlFormatted: true,
       formatter: (row: any) =>
-        row.installation_accordee
-          ? '<span class="badge-pill badge-pill-green">Oui</span>'
-          : '',
+        row.installation_accordee ? '<span class="badge-pill badge-pill-green">Oui</span>' : '',
     },
   ];
 
@@ -109,7 +154,28 @@ dropdownPosition: { top: number; left: number } = { top: 0, left: 0 };
   override ngOnInit(): void {
     super.ngOnInit();
     this.buildYearsRange();
-    this.loadFilterLists();
+
+    this.resourceService
+      .loadResource<any>('departements', { paginate: true, params: { all: '1' } as any })
+      .subscribe((res: any) => {
+        const list = res?.response?.data ?? [];
+        this.filterGeo.departement.list = list;
+        this.filterGeo.departement.filtered = list;
+      });
+
+    this.resourceService
+      .loadResource<any>('diss_sessions', { paginate: true, params: { all: '1' } as any })
+      .subscribe((res: any) => {
+        this.sessionsList = res?.response?.data ?? [];
+        this.simpleFiltered.sessions = this.sessionsList;
+      });
+
+    this.resourceService
+      .loadResource<any>('professions', { paginate: true, params: { all: '1' } as any })
+      .subscribe((res: any) => {
+        this.professionsList = res?.response?.data ?? [];
+        this.simpleFiltered.professions = this.professionsList;
+      });
   }
 
   private formatDate(value: string): string {
@@ -121,173 +187,259 @@ dropdownPosition: { top: number; left: number } = { top: 0, left: 0 };
     return `${day}/${month}/${d.getFullYear()}`;
   }
 
-  // De 2015 à l'année la plus récente présente dans les enregistrements
-  // (par défaut l'année en cours, tant qu'aucun enregistrement futur n'existe).
   private buildYearsRange(): void {
     const currentYear = new Date().getFullYear();
     const list: number[] = [];
-    for (let y = currentYear; y >= 2015; y--) {
-      list.push(y);
-    }
+    for (let y = currentYear; y >= 2015; y--) list.push(y);
     this.years = list;
   }
 
- loadFilterLists(): void {
-    // 1. Charger tous les départements
-    this.resourceService
-      .loadResource<any>('departements', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.departementsList = res?.response?.data ?? []));
-
-    // 2. Charger toutes les communes par défaut au démarrage
-    this.resourceService
-      .loadResource<any>('communes', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.communesFilterList = res?.response?.data ?? []));
-
-    // 3. Charger tous les arrondissements par défaut au démarrage
-    this.resourceService
-      .loadResource<any>('arrondissements', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.arrondissementsFilterList = res?.response?.data ?? []));
-
-    // 4. Charger toutes les sessions
-    this.resourceService
-      .loadResource<any>('diss_sessions', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.sessionsList = res?.response?.data ?? []));
+  // ============================================================
+  //  CASCADE GÉOGRAPHIQUE GÉNÉRIQUE (utilisée par filtres & formulaire)
+  // ============================================================
+  private geoStateOf(target: 'filterGeo' | 'formGeo'): { [key in GeoLevel]: GeoState } {
+    return target === 'filterGeo' ? this.filterGeo : this.formGeo;
   }
 
-  // --- Cascade des filtres ---
-  onFilterDepartementChange(): void {
-    this.searchFilters.commune_id = '';
-    this.searchFilters.arrondissement_id = '';
+  private orderFor(target: 'filterGeo' | 'formGeo'): GeoLevel[] {
+    return target === 'filterGeo' ? FILTER_GEO_ORDER : FORM_GEO_ORDER;
+  }
 
-    const params: any = { all: '1' };
-    if (this.searchFilters.departement_id) {
-      params.departement_id = this.searchFilters.departement_id;
+  onGeoInput(target: 'filterGeo' | 'formGeo', level: GeoLevel, term: string): void {
+    const state = this.geoStateOf(target)[level];
+    const t = (term || '').toLowerCase().trim();
+    state.filtered = t ? state.list.filter((i) => (i.libelle || '').toLowerCase().includes(t)) : state.list;
+    state.open = true;
+  }
+
+  onGeoFocus(target: 'filterGeo' | 'formGeo', level: GeoLevel): void {
+    const state = this.geoStateOf(target)[level];
+    state.filtered = state.list;
+    state.open = true;
+  }
+
+  onGeoBlur(target: 'filterGeo' | 'formGeo', level: GeoLevel): void {
+    const state = this.geoStateOf(target)[level];
+    setTimeout(() => (state.open = false), 200);
+  }
+
+  isGeoDisabled(target: 'filterGeo' | 'formGeo', level: GeoLevel): boolean {
+    const order = this.orderFor(target);
+    const idx = order.indexOf(level);
+    if (idx === 0) return false;
+    const parentLevel = order[idx - 1];
+    return !this.geoStateOf(target)[parentLevel].id;
+  }
+
+  selectGeoOption(target: 'filterGeo' | 'formGeo', level: GeoLevel, item: any): void {
+    const geo = this.geoStateOf(target);
+    const order = this.orderFor(target);
+    geo[level].id = item.id;
+    geo[level].label = item.libelle;
+    geo[level].open = false;
+
+    const idx = order.indexOf(level);
+    for (let i = idx + 1; i < order.length; i++) {
+      geo[order[i]] = emptyGeoState();
     }
 
-    // Charger les communes (filtrées par département si sélectionné, sinon toutes)
+    this.loadNextGeoLevel(target, level, item.id);
+    this.syncGeoToModel(target);
+    if (target === 'filterGeo') this.applyFilters();
+  }
+
+  clearGeoOption(target: 'filterGeo' | 'formGeo', level: GeoLevel): void {
+    const geo = this.geoStateOf(target);
+    const order = this.orderFor(target);
+    const idx = order.indexOf(level);
+    for (let i = idx; i < order.length; i++) {
+      geo[order[i]] = emptyGeoState();
+    }
+    this.syncGeoToModel(target);
+    if (target === 'filterGeo') this.applyFilters();
+  }
+
+  private loadNextGeoLevel(target: 'filterGeo' | 'formGeo', level: GeoLevel, parentId: any): void {
+    const order = this.orderFor(target);
+    const nextResource = GEO_NEXT_RESOURCE[level];
+    const parentParam = GEO_PARENT_PARAM[level];
+    const nextLevel = order[order.indexOf(level) + 1];
+    if (!nextResource || !parentParam || !nextLevel) return;
+
     this.resourceService
-      .loadResource<any>('communes', { paginate: true, params })
-      .subscribe((res: any) => (this.communesFilterList = res?.response?.data ?? []));
-
-    // Mettre à jour les arrondissements
-    this.loadFilterArrondissements();
+      .loadResource<any>(nextResource, { paginate: true, params: { all: '1', [parentParam]: parentId } as any })
+      .subscribe((res: any) => {
+        const list = res?.response?.data ?? [];
+        const geo = this.geoStateOf(target);
+        geo[nextLevel].list = list;
+        geo[nextLevel].filtered = list;
+      });
   }
 
-  onFilterCommuneChange(): void {
-    this.searchFilters.arrondissement_id = '';
-    this.loadFilterArrondissements();
+  private setOrDeleteFilter(key: string, value: any): void {
+    if (value === null || value === undefined || value === '') {
+      delete this.filter[key];
+    } else {
+      this.filter[key] = value;
+    }
   }
 
-  private loadFilterArrondissements(): void {
-    const params: any = { all: '1' };
-    if (this.searchFilters.commune_id) {
-      params.commune_id = this.searchFilters.commune_id;
+  private syncGeoToModel(target: 'filterGeo' | 'formGeo'): void {
+    const geo = this.geoStateOf(target);
+    if (target === 'filterGeo') {
+      this.setOrDeleteFilter('departement_id', geo.departement.id);
+      this.setOrDeleteFilter('commune_id', geo.commune.id);
+      this.setOrDeleteFilter('arrondissement_id', geo.arrondissement.id);
+    } else {
+      this.currentItem.departement_id = geo.departement.id || null;
+      this.currentItem.commune_id = geo.commune.id || null;
+      this.currentItem.arrondissement_id = geo.arrondissement.id || null;
+      this.currentItem.quartier_id = geo.quartier.id || null;
+    }
+  }
+
+  private initFormGeoFromItem(item: Personne): void {
+    this.formGeo = emptyGeo();
+
+    if (this.filterGeo.departement.list.length) {
+      this.formGeo.departement.list = this.filterGeo.departement.list;
+      this.formGeo.departement.filtered = this.filterGeo.departement.list;
     }
 
-    this.resourceService
-      .loadResource<any>('arrondissements', { paginate: true, params })
-      .subscribe((res: any) => (this.arrondissementsFilterList = res?.response?.data ?? []));
+    if (item.departement_id) {
+      this.formGeo.departement.id = item.departement_id;
+      this.formGeo.departement.label = item.departement?.libelle || '';
+      this.resourceService
+        .loadResource<any>('communes', { paginate: true, params: { all: '1', departement_id: item.departement_id } as any })
+        .subscribe((res: any) => {
+          const list = res?.response?.data ?? [];
+          this.formGeo.commune.list = list;
+          this.formGeo.commune.filtered = list;
+        });
+    }
+    if (item.commune_id) {
+      this.formGeo.commune.id = item.commune_id;
+      this.formGeo.commune.label = item.commune?.libelle || '';
+      this.resourceService
+        .loadResource<any>('arrondissements', { paginate: true, params: { all: '1', commune_id: item.commune_id } as any })
+        .subscribe((res: any) => {
+          const list = res?.response?.data ?? [];
+          this.formGeo.arrondissement.list = list;
+          this.formGeo.arrondissement.filtered = list;
+        });
+    }
+    if (item.arrondissement_id) {
+      this.formGeo.arrondissement.id = item.arrondissement_id;
+      this.formGeo.arrondissement.label = item.arrondissement?.libelle || '';
+      this.resourceService
+        .loadResource<any>('quartiers', { paginate: true, params: { all: '1', arrondissement_id: item.arrondissement_id } as any })
+        .subscribe((res: any) => {
+          const list = res?.response?.data ?? [];
+          this.formGeo.quartier.list = list;
+          this.formGeo.quartier.filtered = list;
+        });
+    }
+    if (item.quartier_id) {
+      this.formGeo.quartier.id = item.quartier_id;
+      this.formGeo.quartier.label = item.quartier?.libelle || '';
+    }
   }
+
+  // ===================== Sessions (filtre simple recherchable) =====================
+  onSessionInput(term: string): void {
+    const t = (term || '').toLowerCase().trim();
+    this.simpleFiltered.sessions = t
+      ? this.sessionsList.filter((s) => (s.libelle || '').toLowerCase().includes(t))
+      : this.sessionsList;
+    this.simpleOpen.sessions = true;
+  }
+
+  onSessionFocus(): void {
+    this.simpleFiltered.sessions = this.sessionsList;
+    this.simpleOpen.sessions = true;
+  }
+
+  onSessionBlur(): void {
+    setTimeout(() => (this.simpleOpen.sessions = false), 200);
+  }
+
+  selectSession(item: any): void {
+    this.searchFilters.session_id = item.id;
+    this.searchFilters.session_label = item.libelle;
+    this.simpleOpen.sessions = false;
+    this.applyFilters();
+  }
+
+  clearSession(): void {
+    this.searchFilters.session_id = '';
+    this.searchFilters.session_label = '';
+    this.applyFilters();
+  }
+
+  // ===================== Profession (champ recherchable du formulaire) =====================
+  onProfessionInput(term: string): void {
+    const t = (term || '').toLowerCase().trim();
+    this.simpleFiltered.professions = t
+      ? this.professionsList.filter((p) => (p.libelle || '').toLowerCase().includes(t))
+      : this.professionsList;
+    this.simpleOpen.professions = true;
+  }
+
+  onProfessionFocus(): void {
+    this.simpleFiltered.professions = this.professionsList;
+    this.simpleOpen.professions = true;
+  }
+
+  onProfessionBlur(): void {
+    setTimeout(() => (this.simpleOpen.professions = false), 200);
+  }
+
+  selectProfession(item: any): void {
+    this.currentItem.profession_id = item.id;
+    this.professionLabel = item.libelle;
+    this.simpleOpen.professions = false;
+  }
+
+  clearProfession(): void {
+    this.currentItem.profession_id = null;
+    this.professionLabel = '';
+  }
+
+  // ===================== Selects simples (auto-filtrants) =====================
+  onSimpleSelectChange(): void {
+    this.applyFilters();
+  }
+
   applyFilters(): void {
-    this.filter['search'] = this.searchFilters.search;
-    this.filter['departement_id'] = this.searchFilters.departement_id;
-    this.filter['commune_id'] = this.searchFilters.commune_id;
-    this.filter['arrondissement_id'] = this.searchFilters.arrondissement_id;
-    this.filter['annee'] = this.searchFilters.annee;
-    this.filter['session_id'] = this.searchFilters.session_id;
-    this.filter['appuye'] = this.searchFilters.appuye;
+    this.setOrDeleteFilter('search', this.searchFilters.search);
+    this.setOrDeleteFilter('annee', this.searchFilters.annee);
+    this.setOrDeleteFilter('session_id', this.searchFilters.session_id);
+    this.setOrDeleteFilter('appuye', this.searchFilters.appuye);
     this.data = [];
     this.loadData();
   }
 
- resetFilters(): void {
-    this.searchFilters = {
-      search: '',
-      departement_id: '',
-      commune_id: '',
-      arrondissement_id: '',
-      annee: '',
-      session_id: '',
-      appuye: '',
-    };
+  private searchDebounce: any;
 
-    // Recharger toutes les communes et arrondissements d'origine au lieu de les vider
-    this.resourceService
-      .loadResource<any>('communes', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.communesFilterList = res?.response?.data ?? []));
-
-    this.resourceService
-      .loadResource<any>('arrondissements', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.arrondissementsFilterList = res?.response?.data ?? []));
-
-    this.filter['search'] = '';
-    this.filter['departement_id'] = '';
-    this.filter['commune_id'] = '';
-    this.filter['arrondissement_id'] = '';
-    this.filter['annee'] = '';
-    this.filter['session_id'] = '';
-    this.filter['appuye'] = '';
-    this.data = [];
-    this.loadData();
-  }
-  // --- Cascade du formulaire d'ajout/modification ---
- // --- Cascade du formulaire d'ajout/modification ---
-  onFormDepartementChange(): void {
-    // Si on change le département, on réinitialise les niveaux inférieurs
-    this.currentItem.commune_id = null;
-    this.currentItem.arrondissement_id = null;
-    this.currentItem.quartier_id = null;
-    this.communesFormList = [];
-    this.arrondissementsFormList = [];
-    this.quartiersFormList = [];
-
-    if (!this.currentItem.departement_id) return;
-
-    this.resourceService
-      .loadResource<any>('communes', {
-        paginate: true,
-        params: { all: '1', departement_id: this.currentItem.departement_id } as any,
-      })
-      .subscribe((res: any) => (this.communesFormList = res?.response?.data ?? []));
+  onTableSearch(term: string): void {
+    clearTimeout(this.searchDebounce);
+    this.searchDebounce = setTimeout(() => {
+      this.searchFilters.search = term;
+      this.setOrDeleteFilter('search', (term || '').trim());
+      this.data = [];
+      this.loadData();
+    }, 350);
   }
 
-  onFormCommuneChange(): void {
-    // Si on change la commune, on réinitialise les niveaux inférieurs
-    this.currentItem.arrondissement_id = null;
-    this.currentItem.quartier_id = null;
-    this.arrondissementsFormList = [];
-    this.quartiersFormList = [];
-
-    if (!this.currentItem.commune_id) return;
-
-    this.resourceService
-      .loadResource<any>('arrondissements', {
-        paginate: true,
-        params: { all: '1', commune_id: this.currentItem.commune_id } as any,
-      })
-      .subscribe((res: any) => (this.arrondissementsFormList = res?.response?.data ?? []));
-  }
-
-  onFormArrondissementChange(): void {
-    // Si on change l'arrondissement, on réinitialise le quartier
-    this.currentItem.quartier_id = null;
-    this.quartiersFormList = [];
-
-    if (!this.currentItem.arrondissement_id) return;
-
-    this.resourceService
-      .loadResource<any>('quartiers', {
-        paginate: true,
-        params: { all: '1', arrondissement_id: this.currentItem.arrondissement_id } as any,
-      })
-      .subscribe((res: any) => (this.quartiersFormList = res?.response?.data ?? []));
-  }
-
+  // ===================== Vue liste / formulaire plein écran =====================
   override showAddForm(): void {
     super.showAddForm();
-    this.communesFormList = [];
-    this.arrondissementsFormList = [];
-    this.quartiersFormList = [];
+    this.formGeo = emptyGeo();
+    if (this.filterGeo.departement.list.length) {
+      this.formGeo.departement.list = this.filterGeo.departement.list;
+      this.formGeo.departement.filtered = this.filterGeo.departement.list;
+    }
+    this.professionLabel = '';
     this.currentItem = {
       id: 0,
       code: '',
@@ -314,75 +466,35 @@ dropdownPosition: { top: number; left: number } = { top: 0, left: 0 };
       contact_ac: '',
       lien: '',
     };
-    this.loadProfessions();
+    this.showForm = true;
   }
 
   override editItem(item: Personne): void {
     super.editItem(item);
-    this.loadProfessions();
-
-    // 1. Charger les communes du département existant
-    if (item.departement_id) {
-      this.resourceService
-        .loadResource<any>('communes', {
-          paginate: true,
-          params: { all: '1', departement_id: item.departement_id } as any,
-        })
-        .subscribe((res: any) => (this.communesFormList = res?.response?.data ?? []));
-    } else {
-      this.communesFormList = [];
-    }
-
-    // 2. Charger les arrondissements de la commune existante
-    if (item.commune_id) {
-      this.resourceService
-        .loadResource<any>('arrondissements', {
-          paginate: true,
-          params: { all: '1', commune_id: item.commune_id } as any,
-        })
-        .subscribe((res: any) => (this.arrondissementsFormList = res?.response?.data ?? []));
-    } else {
-      this.arrondissementsFormList = [];
-    }
-
-    // 3. Charger les quartiers de l'arrondissement existant
-    if (item.arrondissement_id) {
-      this.resourceService
-        .loadResource<any>('quartiers', {
-          paginate: true,
-          params: { all: '1', arrondissement_id: item.arrondissement_id } as any,
-        })
-        .subscribe((res: any) => (this.quartiersFormList = res?.response?.data ?? []));
-    } else {
-      this.quartiersFormList = [];
-    }
+    this.initFormGeoFromItem(item);
+    this.professionLabel = item.profession?.libelle || '';
+    this.showForm = true;
   }
-  private loadProfessions(): void {
-    this.resourceService
-      .loadResource<any>('professions', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.professionsList = res?.response?.data ?? []));
-  }
-// Charger toutes les localisations par défaut pour le formulaire
-  private loadAllFormLocations(): void {
-    this.resourceService
-      .loadResource<any>('communes', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.communesFormList = res?.response?.data ?? []));
 
-    this.resourceService
-      .loadResource<any>('arrondissements', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.arrondissementsFormList = res?.response?.data ?? []));
-
-    this.resourceService
-      .loadResource<any>('quartiers', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.quartiersFormList = res?.response?.data ?? []));
+  backToList(): void {
+    this.showForm = false;
   }
+
+  protected override afterItemCreated(item: Personne): void {
+    this.showForm = false;
+  }
+
+  protected override afterItemUpdated(item: Personne): void {
+    this.showForm = false;
+  }
+
   // --- Voir détails ---
   showDetails(item: Personne): void {
     this.viewTarget = item;
   }
 
-  // --- Menu "Faire une demande" ---
- toggleDropdown(item: Personne, event: MouseEvent): void {
+  // --- Menu "Faire une demande" (inchangé) ---
+  toggleDropdown(item: Personne, event: MouseEvent): void {
     if (this.openDropdownId === item.id) {
       this.openDropdownId = null;
       this.dropdownItem = null;
@@ -394,14 +506,12 @@ dropdownPosition: { top: number; left: number } = { top: 0, left: 0 };
     const menuHeightEstimate = 220;
 
     this.dropdownPosition = {
-      // Ouvre vers le HAUT : le bas du menu colle au-dessus du bouton
       top: rect.top + window.scrollY - menuHeightEstimate - 4,
-      // Aligné à DROITE du bouton
       left: Math.min(rect.right + window.scrollX - menuWidth, window.innerWidth - menuWidth - 8),
     };
     this.openDropdownId = item.id;
     this.dropdownItem = item;
-}
+  }
 
   closeDropdown(): void {
     this.openDropdownId = null;
@@ -409,15 +519,15 @@ dropdownPosition: { top: number; left: number } = { top: 0, left: 0 };
   }
 
   goToDemande(type: 'installation' | 'credit' | 'carte' | 'aide', item: Personne): void {
-    this.closeDropdown();
-    const routes: Record<string, string> = {
-      installation: 'staff/demandes-installation',
-      credit: 'staff/demandes-credit',
-      carte: 'staff/cartes-egalite',
-      aide: 'staff/aides-techniques',
-    };
-    this.router.navigate([routes[type]], { queryParams: { personne_id: item.id } });
-  }
+  this.closeDropdown();
+  const routes: Record<string, string> = {
+    installation: Paths.DEMANDESINS,
+    credit: Paths.DEMANDESCRE,
+    carte: Paths.CARTES,
+    aide: Paths.AIDES,
+  };
+  this.router.navigate([routes[type]], { queryParams: { personne_id: item.id } });
+}
 
   ajouterSessionActive(item: Personne): void {
     this.closeDropdown();
@@ -440,7 +550,7 @@ dropdownPosition: { top: number; left: number } = { top: 0, left: 0 };
     });
   }
 
-  // --- Export Excel ---
+  // --- Export Excel (inchangé) ---
   exportExcel(): void {
     if (this.exporting) return;
     this.exporting = true;
@@ -467,9 +577,6 @@ dropdownPosition: { top: number; left: number } = { top: 0, left: 0 };
       error: (error: any) => {
         this.exporting = false;
 
-        // Quand responseType est 'blob', une réponse d'erreur JSON de Laravel
-        // arrive elle aussi comme un Blob (pas du JSON déjà parsé) : il faut
-        // la relire manuellement en texte pour voir le vrai message.
         const errorBlob: Blob | undefined = error?.error instanceof Blob ? error.error : undefined;
 
         if (errorBlob) {
@@ -499,4 +606,5 @@ dropdownPosition: { top: number; left: number } = { top: 0, left: 0 };
         }
       },
     });
-  }  }
+  }
+}

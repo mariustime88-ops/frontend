@@ -21,6 +21,7 @@ export enum ApiRoutes {
   DEMANDESCRE = 'demandescre',
   DEMANDESINS = 'demandesins',
   DOSSIERNAIS = 'dossiernais',
+  
   ETABLISSEMENTS = 'etablissements',
   RENDEZVOUS = 'rendezvous',
   AIDES = 'aides',

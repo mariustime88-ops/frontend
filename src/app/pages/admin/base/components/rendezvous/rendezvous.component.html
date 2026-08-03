@@ -1,1 +1,326 @@
-<p>rendezvous works!</p>
+<!-- ============ VUE LISTE ============ -->
+<app-admin-layout *ngIf="!showForm">
+  <div>
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <h1 class="font-bold text-lg text-gray-950">Base de données complète des demandes de rendez-vous</h1>
+    </div>
+
+    <!-- ===================== Filtres (automatiques, pas de bouton) ===================== -->
+    <div class="card custom-width p-4 mb-3">
+      <div class="flex flex-wrap items-center gap-3">
+
+        <!-- Département -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            placeholder="Département"
+            [(ngModel)]="filterGeo.departement.label"
+            (input)="onGeoInput('filterGeo', 'departement', filterGeo.departement.label)"
+            (focus)="onGeoFocus('filterGeo', 'departement')"
+            (blur)="onGeoBlur('filterGeo', 'departement')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.departement.id" (mousedown)="clearGeoOption('filterGeo', 'departement')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.departement.open">
+            <li *ngIf="filterGeo.departement.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let d of filterGeo.departement.filtered" (mousedown)="selectGeoOption('filterGeo', 'departement', d)">
+              {{ d.libelle }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- GUPS (dépend du département) -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            [placeholder]="isGeoDisabled('filterGeo','gups') ? 'Choisir un département d\'abord' : 'GUPS'"
+            [disabled]="isGeoDisabled('filterGeo','gups')"
+            [(ngModel)]="filterGeo.gups.label"
+            (input)="onGeoInput('filterGeo', 'gups', filterGeo.gups.label)"
+            (focus)="onGeoFocus('filterGeo', 'gups')"
+            (blur)="onGeoBlur('filterGeo', 'gups')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.gups.id" (mousedown)="clearGeoOption('filterGeo', 'gups')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.gups.open">
+            <li *ngIf="filterGeo.gups.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let g of filterGeo.gups.filtered" (mousedown)="selectGeoOption('filterGeo', 'gups', g)">
+              {{ g.libelle }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Statut -->
+        <select [(ngModel)]="searchFilters.statut" (change)="onSimpleSelectChange()" class="select-filter">
+          <option value="">Statut</option>
+          <option value="0">En attente</option>
+          <option value="1">Traité</option>
+        </select>
+
+        <!-- Années -->
+        <select [(ngModel)]="searchFilters.annee" (change)="onSimpleSelectChange()" class="select-filter">
+          <option value="">Années</option>
+          <option *ngFor="let y of years" [value]="y">{{ y }}</option>
+        </select>
+
+        <!-- Sessions -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            placeholder="Toutes les sessions"
+            [(ngModel)]="searchFilters.session_label"
+            (input)="onSessionInput(searchFilters.session_label)"
+            (focus)="onSessionFocus()"
+            (blur)="onSessionBlur()"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="searchFilters.session_id" (mousedown)="clearSession()"></i>
+          <ul class="search-dropdown" *ngIf="simpleOpen.sessions">
+            <li *ngIf="simpleFiltered.sessions.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let s of simpleFiltered.sessions" (mousedown)="selectSession(s)">
+              {{ s.libelle }}
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== Tableau ===================== -->
+    <div class="card custom-width">
+      <div class="flex justify-between items-center flex-wrap gap-2 px-4 pt-4">
+        <p class="font-semibold text-gray-700">Liste des demandes de rendez-vous</p>
+        <div class="flex items-center gap-3">
+          <div class="relative w-72">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <input
+              type="text"
+              [(ngModel)]="searchFilters.search"
+              (ngModelChange)="onTableSearch($event)"
+              placeholder="Rechercher (nom, numéro...)"
+              class="input-style !pl-9"
+            />
+          </div>
+          <button
+            type="button"
+            (click)="exportExcel()"
+            [disabled]="exporting"
+            class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
+          >
+            <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
+            <i class="fas fa-file-excel" *ngIf="!exporting"></i>
+            Exporter
+          </button>
+        </div>
+      </div>
+
+      <app-data-table
+        [data]="data"
+        [columns]="columns"
+        [loading]="loading"
+        [globalFilterFields]="globalFilterFields"
+        [rows]="10"
+        [rowsPerPageOptions]="[5, 10, 25, 50]"
+        [showActions]="true"
+        (onEdit)="editItem($event)"
+        (onDelete)="onDelete($event)"
+        [defaultPaginator]="false"
+        [modalId]="modalId"
+        [deleteId]="deleteId"
+        [hideView]="true"
+        [hideSearch]="true"
+        [filters]="filter"
+        [additionalActionsTemplate]="viewAction"
+      >
+      </app-data-table>
+
+      <div class="flex justify-center my-4">
+        <app-custom-pagination
+          [page]="filter['page']"
+          [totalItems]="filter['total']"
+          [limit]="filter['per_page']"
+          (pageChange)="changePage($event)"
+        ></app-custom-pagination>
+      </div>
+    </div>
+  </div>
+</app-admin-layout>
+
+<!-- Bouton "Voir détails" -->
+<ng-template #viewAction let-item>
+  <button
+    pButton
+    type="button"
+    icon="pi pi-eye"
+    title="Voir détails"
+    attr.data-modal-toggle="#{{ viewDetailsId }}"
+    class="!w-7 !h-7 !p-1 !bg-blue-100 !text-blue-600 hover:!outline !outline-1 hover:!bg-white hover:!outline-blue-500 !rounded-md !flex !justify-center !items-center !transition-all !duration-200"
+    (click)="showDetails(item)"
+  ></button>
+</ng-template>
+
+<!-- Modal "Voir détails" -->
+<div class="modal self-center" data-modal="true" [id]="viewDetailsId">
+  <app-modal title="Détails de la demande de rendez-vous">
+    <div class="modal-body p-5 overflow-auto max-h-[70vh]" *ngIf="viewTarget">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div><span class="font-semibold">Nom et Prénom(s) :</span> {{ viewTarget.nomprenoms || '-' }}</div>
+        <div><span class="font-semibold">Numéro :</span> {{ viewTarget.contact || '-' }}</div>
+        <div><span class="font-semibold">Département :</span> {{ viewTarget.departement?.libelle || '-' }}</div>
+        <div><span class="font-semibold">GUPS :</span> {{ viewTarget.gups?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Date de séance :</span> {{ formatDisplayDate(viewTarget.date_seance) }}</div>
+        <div><span class="font-semibold">Statut :</span> {{ viewTarget.statut == 1 ? 'Traité' : 'En attente' }}</div>
+        <div class="md:col-span-2"><span class="font-semibold">Objet :</span> {{ viewTarget.objet || '-' }}</div>
+      </div>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end">
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<!-- ============ VUE FORMULAIRE PLEIN ÉCRAN (Modification) ============ -->
+<app-admin-layout *ngIf="showForm">
+  <div>
+    <div class="flex items-center gap-3 mb-4">
+      <button
+        type="button"
+        (click)="backToList()"
+        class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
+      >
+        <i class="fas fa-arrow-left mr-2"></i>
+        Retour à la liste
+      </button>
+      <h1 class="font-bold text-lg text-gray-900">
+        {{ editMode ? 'Modification de la demande de rendez-vous de : ' + (currentItem.nomprenoms || '') : 'Ajouter une demande de rendez-vous' }}
+      </h1>
+    </div>
+
+    <div class="card p-6">
+      <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
+        <div class="space-y-4 max-w-3xl">
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Nom et Prénom(s)</label>
+              <input pInputText type="text" [(ngModel)]="currentItem.nomprenoms" name="nomprenoms" class="input-style" />
+            </div>
+            <div class="field">
+              <label class="font-semibold">Numéro</label>
+              <input pInputText type="tel" [(ngModel)]="currentItem.contact" name="contact" class="input-style" />
+            </div>
+          </div>
+
+          <!-- Localisation en cascade : Département -> GUPS -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Département</label>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  placeholder="Rechercher un département..."
+                  [(ngModel)]="formGeo.departement.label"
+                  name="departement_label"
+                  (input)="onGeoInput('formGeo', 'departement', formGeo.departement.label)"
+                  (focus)="onGeoFocus('formGeo', 'departement')"
+                  (blur)="onGeoBlur('formGeo', 'departement')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.departement.id" (mousedown)="clearGeoOption('formGeo', 'departement')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.departement.open">
+                  <li *ngIf="formGeo.departement.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let d of formGeo.departement.filtered" (mousedown)="selectGeoOption('formGeo', 'departement', d)">
+                    {{ d.libelle }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="font-semibold">GUPS</label>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  [placeholder]="isGeoDisabled('formGeo','gups') ? 'Choisir un département d\'abord' : 'Rechercher un GUPS...'"
+                  [disabled]="isGeoDisabled('formGeo','gups')"
+                  [(ngModel)]="formGeo.gups.label"
+                  name="gups_label"
+                  (input)="onGeoInput('formGeo', 'gups', formGeo.gups.label)"
+                  (focus)="onGeoFocus('formGeo', 'gups')"
+                  (blur)="onGeoBlur('formGeo', 'gups')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.gups.id" (mousedown)="clearGeoOption('formGeo', 'gups')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.gups.open">
+                  <li *ngIf="formGeo.gups.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let g of formGeo.gups.filtered" (mousedown)="selectGeoOption('formGeo', 'gups', g)">
+                    {{ g.libelle }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Date de séance</label>
+              <input pInputText type="datetime-local" [(ngModel)]="currentItem.date_seance" name="date_seance" class="input-style" />
+            </div>
+            <div class="field">
+              <label class="font-semibold">Statut</label>
+              <select [(ngModel)]="currentItem.statut" name="statut" class="input-style">
+                <option [ngValue]="0">En attente</option>
+                <option [ngValue]="1">Traité</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="font-semibold">Objet</label>
+            <textarea pInputText [(ngModel)]="currentItem.objet" name="objet" class="input-style" rows="3"></textarea>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
+          <p-progressSpinner *ngIf="processing" [style]="{ width: '40px', height: '40px' }"></p-progressSpinner>
+          <button type="button" (click)="backToList()" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300">
+            Annuler
+          </button>
+          <p-button icon="fas fa-floppy-disk" label="Enregistrer" styleClass="p-button-success" [disabled]="processing" type="submit"></p-button>
+        </div>
+      </form>
+    </div>
+  </div>
+</app-admin-layout>
+
+<!-- Modal Suppression -->
+<div class="modal self-center" data-modal="true" [id]="deleteId">
+  <app-modal title="Supprimer une demande de rendez-vous" [forDelete]="true">
+    <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+      <p>Vous êtes sur le point de supprimer cette demande de rendez-vous.</p>
+      <p>Voulez-vous continuer ?</p>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end gap-4">
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
+          <i class="fas fa-times mr-2"></i>
+          Annuler
+        </button>
+        <button
+          type="button"
+          [disabled]="processing"
+          class="btn text-white bg-red-800 hover:bg-white hover:text-red-800 outline outline-1 hover:outline-red-800 transition-all duration-300"
+          (click)="deleteItem(currentItem)"
+        >
+          <i class="fas fa-trash mr-2"></i>
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<p-toast></p-toast>

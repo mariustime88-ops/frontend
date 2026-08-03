@@ -1,1 +1,634 @@
-<p>dossiernais works!</p>
+<!-- ============ VUE LISTE ============ -->
+<app-admin-layout *ngIf="!showForm">
+  <div>
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <h1 class="font-bold text-lg text-gray-950">
+        {{ sessionScoped
+            ? ('Session active : ' + (activeSession?.libelle || '—'))
+            : 'Base de données complète des dossiers naissance multiple' }}
+      </h1>
+      <div class="flex gap-2">
+        <button
+          *ngIf="sessionScoped"
+          type="button"
+          (click)="showAddForm()"
+          class="btn text-white bg-blue-700 hover:bg-white hover:text-blue-700 outline outline-1 outline-blue-700 transition-all duration-300"
+        >
+          <i class="fas fa-plus"></i>
+          Ajouter
+        </button>
+        <button
+          type="button"
+          (click)="exportExcel()"
+          [disabled]="exporting"
+          class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
+        >
+          <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
+          <i class="fas fa-file-excel" *ngIf="!exporting"></i>
+          Exporter
+        </button>
+      </div>
+    </div>
+
+    <!-- ===================== Filtres (100% automatiques, pas de bouton) ===================== -->
+    <div class="card custom-width p-4 mb-3">
+
+      <!-- Vue "Session active" mais aucune session marquée en cours -->
+      <div *ngIf="sessionScoped && !activeSession" class="text-sm text-red-600 mb-3">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        Aucune session n'est actuellement en cours.
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+
+        <!-- Département -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            placeholder="Tous les départements"
+            [(ngModel)]="filterGeo.departement.label"
+            (input)="onGeoInput('filterGeo', 'departement', filterGeo.departement.label)"
+            (focus)="onGeoFocus('filterGeo', 'departement')"
+            (blur)="onGeoBlur('filterGeo', 'departement')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.departement.id" (mousedown)="clearGeoOption('filterGeo', 'departement')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.departement.open">
+            <li *ngIf="filterGeo.departement.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let d of filterGeo.departement.filtered" (mousedown)="selectGeoOption('filterGeo', 'departement', d)">
+              {{ d.libelle }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Commune (dépend du département) -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            [placeholder]="isGeoDisabled('filterGeo','commune') ? 'Choisir un département d\'abord' : 'Toutes les communes'"
+            [disabled]="isGeoDisabled('filterGeo','commune')"
+            [(ngModel)]="filterGeo.commune.label"
+            (input)="onGeoInput('filterGeo', 'commune', filterGeo.commune.label)"
+            (focus)="onGeoFocus('filterGeo', 'commune')"
+            (blur)="onGeoBlur('filterGeo', 'commune')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.commune.id" (mousedown)="clearGeoOption('filterGeo', 'commune')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.commune.open">
+            <li *ngIf="filterGeo.commune.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let c of filterGeo.commune.filtered" (mousedown)="selectGeoOption('filterGeo', 'commune', c)">
+              {{ c.libelle }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- GUPS (dépend de la commune) -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            [placeholder]="isGeoDisabled('filterGeo','gups') ? 'Choisir une commune d\'abord' : 'GUPS'"
+            [disabled]="isGeoDisabled('filterGeo','gups')"
+            [(ngModel)]="filterGeo.gups.label"
+            (input)="onGeoInput('filterGeo', 'gups', filterGeo.gups.label)"
+            (focus)="onGeoFocus('filterGeo', 'gups')"
+            (blur)="onGeoBlur('filterGeo', 'gups')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.gups.id" (mousedown)="clearGeoOption('filterGeo', 'gups')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.gups.open">
+            <li *ngIf="filterGeo.gups.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let g of filterGeo.gups.filtered" (mousedown)="selectGeoOption('filterGeo', 'gups', g)">
+              {{ g.libelle }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Arrondissement (dépend du GUPS) -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            [placeholder]="isGeoDisabled('filterGeo','arrondissement') ? 'Choisir un GUPS d\'abord' : 'Tous les arrondissements'"
+            [disabled]="isGeoDisabled('filterGeo','arrondissement')"
+            [(ngModel)]="filterGeo.arrondissement.label"
+            (input)="onGeoInput('filterGeo', 'arrondissement', filterGeo.arrondissement.label)"
+            (focus)="onGeoFocus('filterGeo', 'arrondissement')"
+            (blur)="onGeoBlur('filterGeo', 'arrondissement')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.arrondissement.id" (mousedown)="clearGeoOption('filterGeo', 'arrondissement')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.arrondissement.open">
+            <li *ngIf="filterGeo.arrondissement.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let a of filterGeo.arrondissement.filtered" (mousedown)="selectGeoOption('filterGeo', 'arrondissement', a)">
+              {{ a.libelle }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Quartier / Village (dépend de l'arrondissement) -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            [placeholder]="isGeoDisabled('filterGeo','quartier') ? 'Choisir un arrondissement d\'abord' : 'Tous les quartiers/villages'"
+            [disabled]="isGeoDisabled('filterGeo','quartier')"
+            [(ngModel)]="filterGeo.quartier.label"
+            (input)="onGeoInput('filterGeo', 'quartier', filterGeo.quartier.label)"
+            (focus)="onGeoFocus('filterGeo', 'quartier')"
+            (blur)="onGeoBlur('filterGeo', 'quartier')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.quartier.id" (mousedown)="clearGeoOption('filterGeo', 'quartier')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.quartier.open">
+            <li *ngIf="filterGeo.quartier.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let q of filterGeo.quartier.filtered" (mousedown)="selectGeoOption('filterGeo', 'quartier', q)">
+              {{ q.libelle }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Avis : filtre immédiatement au changement -->
+        <select [(ngModel)]="searchFilters.avis" (change)="onSimpleSelectChange()" class="select-filter">
+          <option value="">Avis</option>
+          <option value="1">Accordé</option>
+          <option value="2">Rejeté</option>
+          <option value="0">Pas de décision</option>
+        </select>
+
+        <!-- Paiement : filtre immédiatement au changement -->
+        <select [(ngModel)]="searchFilters.statut_dossier" (change)="onSimpleSelectChange()" class="select-filter">
+          <option value="">Paiement</option>
+          <option value="1">Payé</option>
+          <option value="0">Non payé</option>
+        </select>
+
+        <!-- Années : filtre immédiatement au changement -->
+        <select [(ngModel)]="searchFilters.annee" (change)="onSimpleSelectChange()" class="select-filter">
+          <option value="">Années</option>
+          <option *ngFor="let y of years" [value]="y">{{ y }}</option>
+        </select>
+
+        <!-- Sessions : masqué en vue "Session active", déjà verrouillée dessus -->
+        <div class="search-combo-wrap" *ngIf="!sessionScoped">
+          <input
+            type="text"
+            class="select-filter"
+            placeholder="Toutes les sessions"
+            [(ngModel)]="searchFilters.session_label"
+            (input)="onSessionInput(searchFilters.session_label)"
+            (focus)="onSessionFocus()"
+            (blur)="onSessionBlur()"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="searchFilters.session_id" (mousedown)="clearSession()"></i>
+          <ul class="search-dropdown" *ngIf="simpleOpen.sessions">
+            <li *ngIf="simpleFiltered.sessions.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let s of simpleFiltered.sessions" (mousedown)="selectSession(s)">
+              {{ s.libelle }}
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== Tableau ===================== -->
+    <div class="card custom-width">
+      <!-- Barre de recherche maison, juste au-dessus des actions/du tableau.
+           (Le (onSearch) du data-table ne filtrait pas correctement sur nom_pere /
+           nom_mere / commune, donc on gère la recherche nous-mêmes avec un debounce
+           et on la transmet au backend via le paramètre `search`.) -->
+      <div class="flex justify-between items-center px-4 pt-4">
+        <p class="font-semibold text-gray-700">Liste des dossiers naissance multiple</p>
+        <div class="relative w-72">
+          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input
+            type="text"
+            [(ngModel)]="searchFilters.search"
+            (ngModelChange)="onTableSearch($event)"
+            placeholder="Rechercher (nom du père, de la mère, commune...)"
+            class="input-style !pl-9"
+          />
+        </div>
+      </div>
+
+      <app-data-table
+        [data]="data"
+        [columns]="columns"
+        [loading]="loading"
+        [globalFilterFields]="globalFilterFields"
+        [rows]="10"
+        [rowsPerPageOptions]="[5, 10, 25, 50]"
+        [showActions]="true"
+        (onEdit)="editItem($event)"
+        (onDelete)="onDelete($event)"
+        [defaultPaginator]="false"
+        [modalId]="modalId"
+        [deleteId]="deleteId"
+        [hideView]="true"
+        [hideSearch]="true"
+        [filters]="filter"
+        [additionalActionsTemplate]="viewAction"
+      >
+      </app-data-table>
+
+      <div class="flex justify-center my-4">
+        <app-custom-pagination
+          [page]="filter['page']"
+          [totalItems]="filter['total']"
+          [limit]="filter['per_page']"
+          (pageChange)="changePage($event)"
+        ></app-custom-pagination>
+      </div>
+    </div>
+  </div>
+</app-admin-layout>
+
+<!-- Bouton "Voir détails" ajouté à côté de Modifier / Supprimer -->
+<ng-template #viewAction let-item>
+  <button
+    pButton
+    type="button"
+    icon="pi pi-eye"
+    title="Voir détails"
+    attr.data-modal-toggle="#{{ viewDetailsId }}"
+    class="!w-7 !h-7 !p-1 !bg-blue-100 !text-blue-600 hover:!outline !outline-1 hover:!bg-white hover:!outline-blue-500 !rounded-md !flex !justify-center !items-center !transition-all !duration-200"
+    (click)="showDetails(item)"
+  ></button>
+</ng-template>
+
+<!-- Modal "Voir détails" -->
+<div class="modal self-center" data-modal="true" [id]="viewDetailsId">
+  <app-modal title="Détails du dossier naissance multiple">
+    <div class="modal-body p-5 overflow-auto max-h-[70vh]" *ngIf="viewTarget">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div><span class="font-semibold">Nom du père :</span> {{ viewTarget.nom_pere || '-' }}</div>
+        <div><span class="font-semibold">Nom de la mère :</span> {{ viewTarget.nom_mere || '-' }}</div>
+        <div><span class="font-semibold">Enfants :</span> {{ viewTarget.nom_prenoms_enfants || '-' }}</div>
+        <div><span class="font-semibold">Sexe des enfants :</span> {{ viewTarget.sexe_enfants || '-' }}</div>
+        <div><span class="font-semibold">Date de naissance :</span> {{ formatDisplayDate(viewTarget.date_naissance) }}</div>
+        <div><span class="font-semibold">Commune :</span> {{ viewTarget.commune?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Département :</span> {{ viewTarget.departement?.libelle || '-' }}</div>
+        <div><span class="font-semibold">GUPS :</span> {{ viewTarget.gups?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Arrondissement :</span> {{ viewTarget.arrondissement?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Quartier/Village :</span> {{ viewTarget.quartier?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Numéro de la pièce :</span> {{ viewTarget.numero_piece || '-' }}</div>
+        <div><span class="font-semibold">Décision :</span> {{ viewTarget.avis == 1 ? 'Accordé' : (viewTarget.avis == 2 ? 'Rejeté' : 'Pas de décision') }}</div>
+        <div class="md:col-span-2"><span class="font-semibold">Recommandation :</span> {{ viewTarget.recommandation || '-' }}</div>
+        <div class="md:col-span-2"><span class="font-semibold">Résumé du cas :</span> {{ viewTarget.observations || '-' }}</div>
+      </div>
+
+      <div class="mt-4 border-t pt-3">
+        <p class="font-semibold text-sm mb-2">Documents fournis</p>
+        <div class="flex flex-wrap gap-3 text-sm">
+          <a *ngIf="viewTarget.fiche_naissance" [href]="fileUrl(viewTarget.fiche_naissance)" target="_blank" class="text-blue-600 underline">Fiche de naissance</a>
+          <a *ngIf="viewTarget.rapport_enquete" [href]="fileUrl(viewTarget.rapport_enquete)" target="_blank" class="text-blue-600 underline">Rapport d'enquête sociale</a>
+          <a *ngIf="viewTarget.fiche_constat" [href]="fileUrl(viewTarget.fiche_constat)" target="_blank" class="text-blue-600 underline">Fiche de constat</a>
+          <a *ngIf="viewTarget.carte_identite" [href]="fileUrl(viewTarget.carte_identite)" target="_blank" class="text-blue-600 underline">Pièce d'identité du parent</a>
+          <a *ngIf="viewTarget.photo_complete" [href]="fileUrl(viewTarget.photo_complete)" target="_blank" class="text-blue-600 underline">Photo complète</a>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end">
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<!-- ============ VUE FORMULAIRE PLEIN ÉCRAN (Modification) ============ -->
+<app-admin-layout *ngIf="showForm">
+  <div>
+    <div class="flex items-center gap-3 mb-4">
+      <button
+        type="button"
+        (click)="backToList()"
+        class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
+      >
+        <i class="fas fa-arrow-left mr-2"></i>
+        Retour à la liste
+      </button>
+      <h1 class="font-bold text-lg text-gray-900">
+        {{ editMode ? "Modification des informations d'un dossier naissance multiple" : "Ajouter un dossier naissance multiple" }}
+      </h1>
+    </div>
+
+    <div class="card p-6">
+      <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
+        <div class="space-y-4 gap-4 max-w-5xl">
+
+          <!-- Localisation en cascade : Département -> Commune -> GUPS -> Arrondissement -> Quartier -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Département</label>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  placeholder="Rechercher un département..."
+                  [(ngModel)]="formGeo.departement.label"
+                  name="departement_label"
+                  (input)="onGeoInput('formGeo', 'departement', formGeo.departement.label)"
+                  (focus)="onGeoFocus('formGeo', 'departement')"
+                  (blur)="onGeoBlur('formGeo', 'departement')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.departement.id" (mousedown)="clearGeoOption('formGeo', 'departement')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.departement.open">
+                  <li *ngIf="formGeo.departement.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let d of formGeo.departement.filtered" (mousedown)="selectGeoOption('formGeo', 'departement', d)">
+                    {{ d.libelle }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="font-semibold">Commune</label>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  [placeholder]="isGeoDisabled('formGeo','commune') ? 'Choisir un département d\'abord' : 'Rechercher une commune...'"
+                  [disabled]="isGeoDisabled('formGeo','commune')"
+                  [(ngModel)]="formGeo.commune.label"
+                  name="commune_label"
+                  (input)="onGeoInput('formGeo', 'commune', formGeo.commune.label)"
+                  (focus)="onGeoFocus('formGeo', 'commune')"
+                  (blur)="onGeoBlur('formGeo', 'commune')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.commune.id" (mousedown)="clearGeoOption('formGeo', 'commune')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.commune.open">
+                  <li *ngIf="formGeo.commune.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let c of formGeo.commune.filtered" (mousedown)="selectGeoOption('formGeo', 'commune', c)">
+                    {{ c.libelle }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">GUPS</label>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  [placeholder]="isGeoDisabled('formGeo','gups') ? 'Choisir une commune d\'abord' : 'Rechercher un GUPS...'"
+                  [disabled]="isGeoDisabled('formGeo','gups')"
+                  [(ngModel)]="formGeo.gups.label"
+                  name="gups_label"
+                  (input)="onGeoInput('formGeo', 'gups', formGeo.gups.label)"
+                  (focus)="onGeoFocus('formGeo', 'gups')"
+                  (blur)="onGeoBlur('formGeo', 'gups')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.gups.id" (mousedown)="clearGeoOption('formGeo', 'gups')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.gups.open">
+                  <li *ngIf="formGeo.gups.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let g of formGeo.gups.filtered" (mousedown)="selectGeoOption('formGeo', 'gups', g)">
+                    {{ g.libelle }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="font-semibold">Arrondissement</label>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  [placeholder]="isGeoDisabled('formGeo','arrondissement') ? 'Choisir un GUPS d\'abord' : 'Rechercher un arrondissement...'"
+                  [disabled]="isGeoDisabled('formGeo','arrondissement')"
+                  [(ngModel)]="formGeo.arrondissement.label"
+                  name="arrondissement_label"
+                  (input)="onGeoInput('formGeo', 'arrondissement', formGeo.arrondissement.label)"
+                  (focus)="onGeoFocus('formGeo', 'arrondissement')"
+                  (blur)="onGeoBlur('formGeo', 'arrondissement')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.arrondissement.id" (mousedown)="clearGeoOption('formGeo', 'arrondissement')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.arrondissement.open">
+                  <li *ngIf="formGeo.arrondissement.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let a of formGeo.arrondissement.filtered" (mousedown)="selectGeoOption('formGeo', 'arrondissement', a)">
+                    {{ a.libelle }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quartier / village (dépend de l'arrondissement) -->
+          <div class="field">
+            <label class="font-semibold">Quartier/Village</label>
+            <div class="mt-1 search-combo-wrap">
+              <input
+                type="text"
+                class="input-style"
+                [placeholder]="isGeoDisabled('formGeo','quartier') ? 'Choisir un arrondissement d\'abord' : 'Rechercher un quartier/village...'"
+                [disabled]="isGeoDisabled('formGeo','quartier')"
+                [(ngModel)]="formGeo.quartier.label"
+                name="quartier_label"
+                (input)="onGeoInput('formGeo', 'quartier', formGeo.quartier.label)"
+                (focus)="onGeoFocus('formGeo', 'quartier')"
+                (blur)="onGeoBlur('formGeo', 'quartier')"
+              />
+              <i class="fas fa-times clear-icon" *ngIf="formGeo.quartier.id" (mousedown)="clearGeoOption('formGeo', 'quartier')"></i>
+              <ul class="search-dropdown" *ngIf="formGeo.quartier.open">
+                <li *ngIf="formGeo.quartier.filtered.length === 0" class="empty">Aucun résultat</li>
+                <li *ngFor="let q of formGeo.quartier.filtered" (mousedown)="selectGeoOption('formGeo', 'quartier', q)">
+                  {{ q.libelle }}
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Parents -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Nom et Prénom(s) du père</label>
+              <div class="mt-1">
+                <input pInputText type="text" [(ngModel)]="currentItem.nom_pere" name="nom_pere" class="input-style" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="font-semibold">Nom et Prénom(s) de la mère</label>
+              <div class="mt-1">
+                <input pInputText type="text" [(ngModel)]="currentItem.nom_mere" name="nom_mere" class="input-style" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloc Enfant 1 -->
+          <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
+            <h3 class="font-semibold text-gray-800 text-sm">Enfant 1</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="field">
+                <label class="text-sm font-semibold">Nom et Prénom(s)</label>
+                <input pInputText type="text" [(ngModel)]="currentItem.enfant1_nom" name="enfant1_nom" class="input-style" />
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Sexe</label>
+                <select [(ngModel)]="currentItem.enfant1_sexe" name="enfant1_sexe" class="input-style">
+                  <option value="">-</option>
+                  <option value="M">M</option>
+                  <option value="F">F</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Fiche de naissance</label>
+                <input type="file" (change)="onFileSelected($event, 'enfant1_fiche_naissance')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloc Enfant 2 -->
+          <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
+            <h3 class="font-semibold text-gray-800 text-sm">Enfant 2</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="field">
+                <label class="text-sm font-semibold">Nom et Prénom(s)</label>
+                <input pInputText type="text" [(ngModel)]="currentItem.enfant2_nom" name="enfant2_nom" class="input-style" />
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Sexe</label>
+                <select [(ngModel)]="currentItem.enfant2_sexe" name="enfant2_sexe" class="input-style">
+                  <option value="">-</option>
+                  <option value="M">M</option>
+                  <option value="F">F</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Fiche de naissance</label>
+                <input type="file" (change)="onFileSelected($event, 'enfant2_fiche_naissance')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloc Enfant 3 -->
+          <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
+            <h3 class="font-semibold text-gray-800 text-sm">Enfant 3</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="field">
+                <label class="text-sm font-semibold">Nom et Prénom(s)</label>
+                <input pInputText type="text" [(ngModel)]="currentItem.enfant3_nom" name="enfant3_nom" class="input-style" />
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Sexe</label>
+                <select [(ngModel)]="currentItem.enfant3_sexe" name="enfant3_sexe" class="input-style">
+                  <option value="">-</option>
+                  <option value="M">M</option>
+                  <option value="F">F</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="text-sm font-semibold">Fiche de naissance</label>
+                <input type="file" (change)="onFileSelected($event, 'enfant3_fiche_naissance')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Numéros -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Numéro du père</label>
+              <input pInputText type="text" [(ngModel)]="currentItem.numero_pere" name="numero_pere" class="input-style" />
+            </div>
+            <div class="field">
+              <label class="font-semibold">Numéro de la mère</label>
+              <input pInputText type="number" [(ngModel)]="currentItem.numero_mere" name="numero_mere" class="input-style" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Numéro Celtis de la mère</label>
+              <input pInputText type="number" [(ngModel)]="currentItem.numero_celtis" name="numero_celtis" class="input-style" />
+            </div>
+            <div class="field">
+              <label class="font-semibold">Date de naissance</label>
+              <input pInputText type="date" placeholder="2026-02-01" [(ngModel)]="currentItem.date_naissance" name="date_naissance" class="input-style" />
+            </div>
+          </div>
+
+          <!-- Fichiers du dossier -->
+          <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
+            <h3 class="font-semibold text-gray-800 text-sm">Documents justificatifs</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <label class="font-semibold block mb-1">Rapport enquête sociale</label>
+                <input type="file" (change)="onFileSelected($event, 'rapport_enquete')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                <a *ngIf="editMode && currentItem.rapport_enquete && !selectedFiles['rapport_enquete']" [href]="fileUrl(currentItem.rapport_enquete)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Fiche de constat</label>
+                <input type="file" (change)="onFileSelected($event, 'fiche_constat')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                <a *ngIf="editMode && currentItem.fiche_constat && !selectedFiles['fiche_constat']" [href]="fileUrl(currentItem.fiche_constat)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Photo complète</label>
+                <input type="file" (change)="onFileSelected($event, 'photo_complete')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                <a *ngIf="editMode && currentItem.photo_complete && !selectedFiles['photo_complete']" [href]="fileUrl(currentItem.photo_complete)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Pièce d'identité d'un parent</label>
+                <input type="file" (change)="onFileSelected($event, 'carte_identite')" class="input-style" accept=".png,.jpeg,.webp,.jpg,.pdf,.txt,.docx,.doc" />
+                <a *ngIf="editMode && currentItem.carte_identite && !selectedFiles['carte_identite']" [href]="fileUrl(currentItem.carte_identite)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="font-semibold">Numéro de la pièce</label>
+            <input pInputText type="text" [(ngModel)]="currentItem.numero_piece" name="numero_piece" class="input-style" />
+          </div>
+
+          <div class="field">
+            <label class="font-semibold">Résumé de cas</label>
+            <textarea pInputText [(ngModel)]="currentItem.observations" name="observations" class="input-style" rows="3"></textarea>
+          </div>
+
+          <div class="field">
+            <label class="font-semibold">Recommandation</label>
+            <textarea pInputText [(ngModel)]="currentItem.recommandation" name="recommandation" class="input-style" rows="3"></textarea>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
+          <p-progressSpinner *ngIf="processing" [style]="{ width: '40px', height: '40px' }"></p-progressSpinner>
+          <button type="button" (click)="backToList()" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300">
+            Annuler
+          </button>
+          <p-button icon="fas fa-floppy-disk" label="Enregistrer" styleClass="p-button-success" [disabled]="processing" type="submit"></p-button>
+        </div>
+      </form>
+    </div>
+  </div>
+</app-admin-layout>
+
+<!-- Modal Suppression -->
+<div class="modal self-center" data-modal="true" [id]="deleteId">
+  <app-modal title="Supprimer un dossier naissance multiple" [forDelete]="true">
+    <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+      <p>Vous êtes sur le point de supprimer ce dossier naissance multiple.</p>
+      <p>Voulez-vous continuer ?</p>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end gap-4">
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
+          <i class="fas fa-times mr-2"></i>
+          Annuler
+        </button>
+        <button
+          type="button"
+          [disabled]="processing"
+          class="btn text-white bg-red-800 hover:bg-white hover:text-red-800 outline outline-1 hover:outline-red-800 transition-all duration-300"
+          (click)="deleteItem(currentItem)"
+        >
+          <i class="fas fa-trash mr-2"></i>
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<p-toast></p-toast>

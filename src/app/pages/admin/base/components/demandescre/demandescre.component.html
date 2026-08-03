@@ -1,1 +1,427 @@
-<p>demandescre works!</p>
+<!-- ============ VUE LISTE ============ -->
+<app-admin-layout *ngIf="!showForm">
+  <div>
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <h1 class="font-bold text-lg text-gray-950">
+        {{ sessionScoped
+            ? ('Session active : ' + (activeSession?.libelle || '—'))
+            : 'Base de données complète des demandes de crédit' }}
+      </h1>
+      <button
+        *ngIf="sessionScoped"
+        type="button"
+        (click)="showAddForm()"
+        class="btn text-white bg-blue-700 hover:bg-white hover:text-blue-700 outline outline-1 outline-blue-700 transition-all duration-300"
+      >
+        <i class="fas fa-plus"></i>
+        Ajouter
+      </button>
+    </div>
+
+    <!-- ===================== Filtres (automatiques, pas de bouton) ===================== -->
+    <div class="card custom-width p-4 mb-3">
+
+      <!-- Vue "Session active" mais aucune session marquée en cours -->
+      <div *ngIf="sessionScoped && !activeSession" class="text-sm text-red-600 mb-3">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        Aucune session n'est actuellement en cours.
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+
+        <!-- Département -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            placeholder="Tous les départements"
+            [(ngModel)]="filterGeo.departement.label"
+            (input)="onGeoInput('filterGeo', 'departement', filterGeo.departement.label)"
+            (focus)="onGeoFocus('filterGeo', 'departement')"
+            (blur)="onGeoBlur('filterGeo', 'departement')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.departement.id" (mousedown)="clearGeoOption('filterGeo', 'departement')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.departement.open">
+            <li *ngIf="filterGeo.departement.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let d of filterGeo.departement.filtered" (mousedown)="selectGeoOption('filterGeo', 'departement', d)">
+              {{ d.libelle }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Commune (dépend du département) -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            [placeholder]="isGeoDisabled('filterGeo','commune') ? 'Choisir un département d\'abord' : 'Toutes les communes'"
+            [disabled]="isGeoDisabled('filterGeo','commune')"
+            [(ngModel)]="filterGeo.commune.label"
+            (input)="onGeoInput('filterGeo', 'commune', filterGeo.commune.label)"
+            (focus)="onGeoFocus('filterGeo', 'commune')"
+            (blur)="onGeoBlur('filterGeo', 'commune')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.commune.id" (mousedown)="clearGeoOption('filterGeo', 'commune')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.commune.open">
+            <li *ngIf="filterGeo.commune.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let c of filterGeo.commune.filtered" (mousedown)="selectGeoOption('filterGeo', 'commune', c)">
+              {{ c.libelle }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Statut -->
+        <select [(ngModel)]="searchFilters.statut" (change)="onSimpleSelectChange()" class="select-filter">
+          <option value="">Statut</option>
+          <option value="En attente">En attente</option>
+          <option value="Validé">Validé</option>
+          <option value="Rejeté">Rejeté</option>
+        </select>
+
+        <!-- Années -->
+        <select [(ngModel)]="searchFilters.annee" (change)="onSimpleSelectChange()" class="select-filter">
+          <option value="">Années</option>
+          <option *ngFor="let y of years" [value]="y">{{ y }}</option>
+        </select>
+
+        <!-- Sessions : masqué en vue "Session active", déjà verrouillée dessus -->
+        <div class="search-combo-wrap" *ngIf="!sessionScoped">
+          <input
+            type="text"
+            class="select-filter"
+            placeholder="Toutes les sessions"
+            [(ngModel)]="searchFilters.session_label"
+            (input)="onSessionInput(searchFilters.session_label)"
+            (focus)="onSessionFocus()"
+            (blur)="onSessionBlur()"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="searchFilters.session_id" (mousedown)="clearSession()"></i>
+          <ul class="search-dropdown" *ngIf="simpleOpen.sessions">
+            <li *ngIf="simpleFiltered.sessions.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let s of simpleFiltered.sessions" (mousedown)="selectSession(s)">
+              {{ s.libelle }}
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== Tableau ===================== -->
+    <div class="card custom-width">
+      <div class="flex justify-between items-center flex-wrap gap-2 px-4 pt-4">
+        <p class="font-semibold text-gray-700">Liste des demandes de crédit</p>
+        <div class="flex items-center gap-3">
+          <div class="relative w-72">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <input
+              type="text"
+              [(ngModel)]="searchFilters.search"
+              (ngModelChange)="onTableSearch($event)"
+              placeholder="Rechercher (nom, contact, NPI...)"
+              class="input-style !pl-9"
+            />
+          </div>
+          <button
+            type="button"
+            (click)="exportExcel()"
+            [disabled]="exporting"
+            class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
+          >
+            <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
+            <i class="fas fa-file-excel" *ngIf="!exporting"></i>
+            Exporter
+          </button>
+        </div>
+      </div>
+
+      <app-data-table
+        [data]="data"
+        [columns]="columns"
+        [loading]="loading"
+        [globalFilterFields]="globalFilterFields"
+        [rows]="10"
+        [rowsPerPageOptions]="[5, 10, 25, 50]"
+        [showActions]="true"
+        (onEdit)="editItem($event)"
+        (onDelete)="onDelete($event)"
+        [defaultPaginator]="false"
+        [modalId]="modalId"
+        [deleteId]="deleteId"
+        [hideView]="true"
+        [hideSearch]="true"
+        [filters]="filter"
+        [additionalActionsTemplate]="viewAction"
+      >
+      </app-data-table>
+
+      <div class="flex justify-center my-4">
+        <app-custom-pagination
+          [page]="filter['page']"
+          [totalItems]="filter['total']"
+          [limit]="filter['per_page']"
+          (pageChange)="changePage($event)"
+        ></app-custom-pagination>
+      </div>
+    </div>
+  </div>
+</app-admin-layout>
+
+<!-- Bouton "Voir détails" -->
+<ng-template #viewAction let-item>
+  <button
+    pButton
+    type="button"
+    icon="pi pi-eye"
+    title="Voir détails"
+    attr.data-modal-toggle="#{{ viewDetailsId }}"
+    class="!w-7 !h-7 !p-1 !bg-blue-100 !text-blue-600 hover:!outline !outline-1 hover:!bg-white hover:!outline-blue-500 !rounded-md !flex !justify-center !items-center !transition-all !duration-200"
+    (click)="showDetails(item)"
+  ></button>
+</ng-template>
+
+<!-- Modal "Voir détails" -->
+<div class="modal self-center" data-modal="true" [id]="viewDetailsId">
+  <app-modal title="Détails de la demande de crédit">
+    <div class="modal-body p-5 overflow-auto max-h-[70vh]" *ngIf="viewTarget">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div><span class="font-semibold">Demandeur :</span> {{ getDemandeurNom(viewTarget) }}</div>
+        <div><span class="font-semibold">Date de naissance :</span> {{ formatDisplayDate(viewTarget.personne?.date_naissance) }}</div>
+        <div><span class="font-semibold">Sexe :</span> {{ viewTarget.personne?.sexe || '-' }}</div>
+        <div><span class="font-semibold">Contact :</span> {{ viewTarget.personne?.contact || '-' }}</div>
+        <div><span class="font-semibold">NPI :</span> {{ getDemandeurNpi(viewTarget) }}</div>
+        <div><span class="font-semibold">Statut :</span> {{ viewTarget.statut || '-' }}</div>
+        <div><span class="font-semibold">Département :</span> {{ viewTarget.departement?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Commune :</span> {{ viewTarget.commune?.libelle || '-' }}</div>
+        <div><span class="font-semibold">GUPS :</span> {{ viewTarget.gups?.libelle || '-' }}</div>
+        <div><span class="font-semibold">Dénomination du projet :</span> {{ viewTarget.denomination || '-' }}</div>
+        <div><span class="font-semibold">Domaine d'activité :</span> {{ viewTarget.domaine_activite || '-' }}</div>
+        <div><span class="font-semibold">Montant sollicité :</span> {{ viewTarget.montant || '-' }}</div>
+        <div class="md:col-span-2"><span class="font-semibold">Objectifs du prêt :</span> {{ viewTarget.objectif || '-' }}</div>
+      </div>
+
+      <div class="mt-4 border-t pt-3">
+        <p class="font-semibold text-sm mb-2">Documents fournis</p>
+        <div class="flex flex-wrap gap-3 text-sm">
+          <a *ngIf="viewTarget.projet" [href]="fileUrl(viewTarget.projet)" target="_blank" class="text-blue-600 underline">Projet</a>
+          <a *ngIf="viewTarget.plan_affaire" [href]="fileUrl(viewTarget.plan_affaire)" target="_blank" class="text-blue-600 underline">Plan d'affaire</a>
+          <a *ngIf="viewTarget.identifiant_fiscal" [href]="fileUrl(viewTarget.identifiant_fiscal)" target="_blank" class="text-blue-600 underline">Identifiant fiscal</a>
+          <a *ngIf="viewTarget.releve_bancaire" [href]="fileUrl(viewTarget.releve_bancaire)" target="_blank" class="text-blue-600 underline">Relevé bancaire</a>
+          <a *ngIf="viewTarget.carte_egalite" [href]="fileUrl(viewTarget.carte_egalite)" target="_blank" class="text-blue-600 underline">Carte d'égalité / récépissé</a>
+          <a *ngIf="viewTarget.carte_nationale" [href]="fileUrl(viewTarget.carte_nationale)" target="_blank" class="text-blue-600 underline">Carte nationale</a>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end">
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<!-- ============ VUE FORMULAIRE PLEIN ÉCRAN (Modification) ============ -->
+<app-admin-layout *ngIf="showForm">
+  <div>
+    <div class="flex items-center gap-3 mb-4">
+      <button
+        type="button"
+        (click)="backToList()"
+        class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
+      >
+        <i class="fas fa-arrow-left mr-2"></i>
+        Retour
+      </button>
+    </div>
+
+    <div class="card p-6">
+      <h1 class="font-bold text-lg text-gray-900 mb-1" *ngIf="editMode">
+        Modification des informations sur la demande de crédit de : {{ getDemandeurNom(currentItem) }}
+      </h1>
+      <h1 class="font-bold text-lg text-gray-900 mb-1" *ngIf="!editMode">Ajouter une demande de crédit</h1>
+
+      <!-- Identité du demandeur : lecture seule, vient de la relation "personne" -->
+      <div class="text-sm text-gray-700 space-y-1 mb-5" *ngIf="editMode">
+        <p><span class="font-semibold">Demandeur :</span> {{ getDemandeurNom(currentItem) }}</p>
+        <p><span class="font-semibold">Date de Naissance :</span> {{ formatDisplayDate(currentItem.personne?.date_naissance) }}</p>
+        <p><span class="font-semibold">Sexe :</span> {{ currentItem.personne?.sexe || '-' }}</p>
+      </div>
+
+      <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
+        <div class="space-y-4 gap-4 max-w-5xl">
+
+          <!-- Localisation en cascade : Département -> Commune -> GUPS -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Département</label>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  placeholder="Rechercher un département..."
+                  [(ngModel)]="formGeo.departement.label"
+                  name="departement_label"
+                  (input)="onGeoInput('formGeo', 'departement', formGeo.departement.label)"
+                  (focus)="onGeoFocus('formGeo', 'departement')"
+                  (blur)="onGeoBlur('formGeo', 'departement')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.departement.id" (mousedown)="clearGeoOption('formGeo', 'departement')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.departement.open">
+                  <li *ngIf="formGeo.departement.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let d of formGeo.departement.filtered" (mousedown)="selectGeoOption('formGeo', 'departement', d)">
+                    {{ d.libelle }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="font-semibold">Commune</label>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  [placeholder]="isGeoDisabled('formGeo','commune') ? 'Choisir un département d\'abord' : 'Rechercher une commune...'"
+                  [disabled]="isGeoDisabled('formGeo','commune')"
+                  [(ngModel)]="formGeo.commune.label"
+                  name="commune_label"
+                  (input)="onGeoInput('formGeo', 'commune', formGeo.commune.label)"
+                  (focus)="onGeoFocus('formGeo', 'commune')"
+                  (blur)="onGeoBlur('formGeo', 'commune')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.commune.id" (mousedown)="clearGeoOption('formGeo', 'commune')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.commune.open">
+                  <li *ngIf="formGeo.commune.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let c of formGeo.commune.filtered" (mousedown)="selectGeoOption('formGeo', 'commune', c)">
+                    {{ c.libelle }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="font-semibold">GUPS</label>
+            <div class="mt-1 search-combo-wrap max-w-md">
+              <input
+                type="text"
+                class="input-style"
+                [placeholder]="isGeoDisabled('formGeo','gups') ? 'Choisir une commune d\'abord' : 'Rechercher un GUPS...'"
+                [disabled]="isGeoDisabled('formGeo','gups')"
+                [(ngModel)]="formGeo.gups.label"
+                name="gups_label"
+                (input)="onGeoInput('formGeo', 'gups', formGeo.gups.label)"
+                (focus)="onGeoFocus('formGeo', 'gups')"
+                (blur)="onGeoBlur('formGeo', 'gups')"
+              />
+              <i class="fas fa-times clear-icon" *ngIf="formGeo.gups.id" (mousedown)="clearGeoOption('formGeo', 'gups')"></i>
+              <ul class="search-dropdown" *ngIf="formGeo.gups.open">
+                <li *ngIf="formGeo.gups.filtered.length === 0" class="empty">Aucun résultat</li>
+                <li *ngFor="let g of formGeo.gups.filtered" (mousedown)="selectGeoOption('formGeo', 'gups', g)">
+                  {{ g.libelle }}
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Projet -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="field">
+              <label class="font-semibold">Dénomination du projet</label>
+              <input pInputText type="text" [(ngModel)]="currentItem.denomination" name="denomination" class="input-style" />
+            </div>
+            <div class="field">
+              <label class="font-semibold">Domaine d'activité</label>
+              <input pInputText type="text" [(ngModel)]="currentItem.domaine_activite" name="domaine_activite" class="input-style" />
+            </div>
+          </div>
+
+          <div class="field max-w-md">
+            <label class="font-semibold">Montant Sollicité</label>
+            <input pInputText type="number" [(ngModel)]="currentItem.montant" name="montant" class="input-style" />
+          </div>
+
+          <!-- Pièces jointes -->
+          <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
+            <h3 class="font-semibold text-gray-800 text-sm">Pièces jointes (fichier : pdf)</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <label class="font-semibold block mb-1">Projet</label>
+                <input type="file" (change)="onFileSelected($event, 'projet')" class="input-style" accept=".pdf" />
+                <a *ngIf="editMode && currentItem.projet && !selectedFiles['projet']" [href]="fileUrl(currentItem.projet)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Plan d'affaire</label>
+                <input type="file" (change)="onFileSelected($event, 'plan_affaire')" class="input-style" accept=".pdf" />
+                <a *ngIf="editMode && currentItem.plan_affaire && !selectedFiles['plan_affaire']" [href]="fileUrl(currentItem.plan_affaire)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Identifiant Fiscal</label>
+                <input type="file" (change)="onFileSelected($event, 'identifiant_fiscal')" class="input-style" accept=".pdf" />
+                <a *ngIf="editMode && currentItem.identifiant_fiscal && !selectedFiles['identifiant_fiscal']" [href]="fileUrl(currentItem.identifiant_fiscal)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Relevé Bancaire</label>
+                <input type="file" (change)="onFileSelected($event, 'releve_bancaire')" class="input-style" accept=".pdf" />
+                <a *ngIf="editMode && currentItem.releve_bancaire && !selectedFiles['releve_bancaire']" [href]="fileUrl(currentItem.releve_bancaire)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Carte d'Égalité ou Récépissé de dépôt</label>
+                <input type="file" (change)="onFileSelected($event, 'carte_egalite')" class="input-style" accept=".pdf" />
+                <a *ngIf="editMode && currentItem.carte_egalite && !selectedFiles['carte_egalite']" [href]="fileUrl(currentItem.carte_egalite)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+              <div>
+                <label class="font-semibold block mb-1">Carte Nationale</label>
+                <input type="file" (change)="onFileSelected($event, 'carte_nationale')" class="input-style" accept=".pdf" />
+                <a *ngIf="editMode && currentItem.carte_nationale && !selectedFiles['carte_nationale']" [href]="fileUrl(currentItem.carte_nationale)" target="_blank" class="text-xs text-blue-600 underline">Voir le fichier actuel</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="font-semibold">Objectifs du prêt sollicité</label>
+            <textarea pInputText [(ngModel)]="currentItem.objectif" name="objectif" class="input-style" rows="3"></textarea>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
+          <p-progressSpinner *ngIf="processing" [style]="{ width: '40px', height: '40px' }"></p-progressSpinner>
+          <button type="button" (click)="backToList()" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300">
+            Annuler
+          </button>
+          <p-button icon="fas fa-floppy-disk" label="Enregistrer" styleClass="p-button-success" [disabled]="processing" type="submit"></p-button>
+        </div>
+      </form>
+    </div>
+  </div>
+</app-admin-layout>
+
+<!-- Modal Suppression -->
+<div class="modal self-center" data-modal="true" [id]="deleteId">
+  <app-modal title="Supprimer une demande de crédit" [forDelete]="true">
+    <div class="modal-body p-5 overflow-auto max-h-[65vh]">
+      <p>Vous êtes sur le point de supprimer cette demande de crédit.</p>
+      <p>Voulez-vous continuer ?</p>
+    </div>
+    <div class="modal-footer p-5 border-t border-gray-200">
+      <div class="flex justify-end gap-4">
+        <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
+          <i class="fas fa-times mr-2"></i>
+          Annuler
+        </button>
+        <button
+          type="button"
+          [disabled]="processing"
+          class="btn text-white bg-red-800 hover:bg-white hover:text-red-800 outline outline-1 hover:outline-red-800 transition-all duration-300"
+          (click)="deleteItem(currentItem)"
+        >
+          <i class="fas fa-trash mr-2"></i>
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+<p-toast></p-toast>
