@@ -3,7 +3,11 @@
   <div>
     <!-- En-tête & bouton Ajouter -->
     <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
-      <h1 class="font-bold text-lg text-gray-900">Base de données complète des demandeurs</h1>
+      <h1 class="font-bold text-lg text-gray-900">
+        {{ sessionScoped
+            ? ('Session active : ' + (activeSession?.libelle || '—'))
+            : 'Base de données complète des demandeurs' }}
+      </h1>
       <button
         class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300"
         (click)="showAddForm()"
@@ -15,6 +19,13 @@
 
     <!-- ===================== Filtres (automatiques, pas de bouton) ===================== -->
     <div class="card custom-width p-4 mb-3">
+
+      <!-- Vue "Session active" mais aucune session marquée en cours -->
+      <div *ngIf="sessionScoped && !activeSession" class="text-sm text-red-600 mb-3">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        Aucune session n'est actuellement en cours.
+      </div>
+
       <div class="flex flex-wrap items-center gap-3">
 
         <!-- Département -->
@@ -85,8 +96,8 @@
           <option *ngFor="let y of years" [value]="y">{{ y }}</option>
         </select>
 
-        <!-- Sessions -->
-        <div class="search-combo-wrap">
+        <!-- Sessions : masqué en vue "Session active", déjà verrouillée dessus -->
+        <div class="search-combo-wrap" *ngIf="!sessionScoped">
           <input
             type="text"
             class="select-filter"
@@ -229,15 +240,17 @@
   >
     <i class="fas fa-id-card text-gray-500"></i> Carte d'égalité
   </button>
-  <button
+ <button
     type="button"
     class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
     (click)="goToDemande('aide', dropdownItem!)"
   >
     <i class="fas fa-wheelchair text-gray-500"></i> Demande d'aide technique
   </button>
-  <div class="border-t border-gray-100 my-1"></div>
+
+  <div class="border-t border-gray-100 my-1" *ngIf="!sessionScoped"></div>
   <button
+    *ngIf="!sessionScoped"
     type="button"
     class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 text-green-700"
     (click)="ajouterSessionActive(dropdownItem!)"
@@ -245,7 +258,6 @@
     <i class="fas fa-bolt"></i> Ajouter à la session active
   </button>
 </div>
-
 <!-- Modal Voir détails (INCHANGÉ) -->
 <div class="modal self-center" data-modal="true" [id]="viewDetailsId">
   <app-modal title="Détails du demandeur">

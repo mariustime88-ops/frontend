@@ -169,6 +169,18 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
           this.lockToActiveSession();
         }
       });
+
+    // Arrivée depuis le menu "Faire une demande" de demandeurs.component.ts
+    // (?personne_id=X&openForm=1) : on ouvre directement le formulaire d'ajout,
+    // pré-rempli avec le demandeur, au lieu d'atterrir sur le tableau.
+    this.activatedRoute.queryParams.subscribe((params) => {
+      if (params['openForm'] && params['personne_id']) {
+        setTimeout(() => {
+          this.showAddForm();
+          this.currentItem.personne_id = Number(params['personne_id']);
+        }, 300);
+      }
+    });
   }
 
   // ============================================================

@@ -2,11 +2,31 @@
 <app-admin-layout *ngIf="!showForm">
   <div>
     <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
-      <h1 class="font-bold text-lg text-gray-950">Base de données complète des demandes de rendez-vous</h1>
+      <h1 class="font-bold text-lg text-gray-950">
+        {{ sessionScoped
+            ? ('Session active : ' + (activeSession?.libelle || '—'))
+            : 'Base de données complète des demandes de rendez-vous' }}
+      </h1>
+      <button
+        *ngIf="sessionScoped"
+        type="button"
+        (click)="showAddForm()"
+        class="btn text-white bg-blue-700 hover:bg-white hover:text-blue-700 outline outline-1 outline-blue-700 transition-all duration-300"
+      >
+        <i class="fas fa-plus"></i>
+        Ajouter
+      </button>
     </div>
 
     <!-- ===================== Filtres (automatiques, pas de bouton) ===================== -->
     <div class="card custom-width p-4 mb-3">
+
+      <!-- Vue "Session active" mais aucune session marquée en cours -->
+      <div *ngIf="sessionScoped && !activeSession" class="text-sm text-red-600 mb-3">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        Aucune session n'est actuellement en cours.
+      </div>
+
       <div class="flex flex-wrap items-center gap-3">
 
         <!-- Département -->
@@ -63,8 +83,8 @@
           <option *ngFor="let y of years" [value]="y">{{ y }}</option>
         </select>
 
-        <!-- Sessions -->
-        <div class="search-combo-wrap">
+        <!-- Sessions : masqué en vue "Session active", déjà verrouillée dessus -->
+        <div class="search-combo-wrap" *ngIf="!sessionScoped">
           <input
             type="text"
             class="select-filter"

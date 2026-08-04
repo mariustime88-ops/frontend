@@ -111,14 +111,26 @@ export const routes: Routes = [
     path: Paths.SESSIONS,
     component: SessionsComponent,
   },
-  {
-    path: Paths.DEMANDEURS,
-    component: DemandeursComponent,
-  },
-  {
-    path: Paths.ETUDIANTSHANDS,
-    component: EtudiantshandsComponent,
-  },
+ {
+  path: Paths.DEMANDEURS,
+  component: DemandeursComponent,
+  data: { sessionScoped: false },
+},
+{
+  path: Paths.DEMANDEURS_SESSION,
+  component: DemandeursComponent,
+  data: { sessionScoped: true },
+},
+ {
+  path: Paths.ETUDIANTSHANDS,
+  component: EtudiantshandsComponent,
+  data: { sessionScoped: false },
+},
+{
+  path: Paths.ETUDIANTSHANDS_SESSION,
+  component: EtudiantshandsComponent,
+  data: { sessionScoped: true },
+},
 {
   path: Paths.CARTES,
   component: CartesComponent,
@@ -139,10 +151,16 @@ export const routes: Routes = [
   component: DemandescreComponent,
   data: { sessionScoped: true },
 },
-  {
-    path: Paths.DEMANDESINS,
-    component: DemandesinsComponent,
-  },
+ {
+  path: Paths.DEMANDESINS,
+  component: DemandesinsComponent,
+  data: { sessionScoped: false },
+},
+{
+  path: Paths.DEMANDESINS_SESSION,
+  component: DemandesinsComponent,
+  data: { sessionScoped: true },
+},
   {
   path: Paths.DOSSIERNAIS,
   component: DossiernaisComponent,
@@ -173,9 +191,16 @@ export const routes: Routes = [
   component: EtablissementsComponent,
   data: { sessionScoped: true },
 },
-   { path: Paths.RENDEZVOUS,
-    component: RendezvousComponent,
-  },
+  {
+  path: Paths.RENDEZVOUS,
+  component: RendezvousComponent,
+  data: { sessionScoped: false },
+},
+{
+  path: Paths.RENDEZVOUS_SESSION,
+  component: RendezvousComponent,
+  data: { sessionScoped: true },
+},
   {
     path: Paths.DEMANDEURS,
     component: DemandeursComponent,
