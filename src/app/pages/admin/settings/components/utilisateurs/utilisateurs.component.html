@@ -1,11 +1,11 @@
-<app-admin-layout>
+<!-- ============ VUE LISTE ============ -->
+<app-admin-layout *ngIf="!showForm">
   <div>
     <!-- En-tête & bouton Ajouter -->
     <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
       <h1 class="font-bold text-lg text-gray-900">Liste des agents</h1>
       <button
         class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300"
-        attr.data-modal-toggle="#{{ modalId }}"
         (click)="showAddForm()"
       >
         <i class="fas fa-plus-circle"></i>
@@ -13,61 +13,89 @@
       </button>
     </div>
 
-    <!-- Filtres -->
+    <!-- ===================== Filtres (automatiques, pas de bouton) ===================== -->
     <div class="card custom-width p-4 mb-3">
       <div class="flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          [(ngModel)]="searchFilters.search"
-          placeholder="Nom ou email..."
-          class="input-style"
-          style="max-width: 260px;"
-        />
 
-        <select [(ngModel)]="searchFilters.role" class="select-filter">
-          <option value="">Tous les rôles</option>
-          <option value="1">Administrateur</option>
-          <option value="2">Agent</option>
-        </select>
+        <!-- Rôle -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            placeholder="Tous les rôles"
+            [(ngModel)]="combos.filterRole.label"
+            (input)="onComboInput('filterRole', combos.filterRole.label)"
+            (focus)="onComboFocus('filterRole')"
+            (blur)="onComboBlur('filterRole')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="combos.filterRole.id !== ''" (mousedown)="clearComboOption('filterRole')"></i>
+          <ul class="search-dropdown" *ngIf="combos.filterRole.open">
+            <li *ngIf="combos.filterRole.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let r of combos.filterRole.filtered" (mousedown)="selectComboOption('filterRole', r)">
+              {{ r.libelle }}
+            </li>
+          </ul>
+        </div>
 
-        <select [(ngModel)]="searchFilters.grade" class="select-filter">
-          <option value="">Tous les niveaux</option>
-          <option value="1">GUPS</option>
-          <option value="2">Départemental</option>
-          <option value="3">National</option>
-        </select>
+        <!-- Niveau -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            placeholder="Tous les niveaux"
+            [(ngModel)]="combos.filterGrade.label"
+            (input)="onComboInput('filterGrade', combos.filterGrade.label)"
+            (focus)="onComboFocus('filterGrade')"
+            (blur)="onComboBlur('filterGrade')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="combos.filterGrade.id !== ''" (mousedown)="clearComboOption('filterGrade')"></i>
+          <ul class="search-dropdown" *ngIf="combos.filterGrade.open">
+            <li *ngIf="combos.filterGrade.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let g of combos.filterGrade.filtered" (mousedown)="selectComboOption('filterGrade', g)">
+              {{ g.libelle }}
+            </li>
+          </ul>
+        </div>
 
-        <select [(ngModel)]="searchFilters.lecture_seule" class="select-filter">
-          <option value="">Tous les accès</option>
-          <option value="0">Écriture</option>
-          <option value="1">Lecture seule</option>
-        </select>
-
-        <button
-          type="button"
-          (click)="applyFilters()"
-          [disabled]="loading"
-          class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300 disabled:opacity-60"
-        >
-          <i class="fas fa-spinner fa-spin" *ngIf="loading"></i>
-          <i class="fas fa-search" *ngIf="!loading"></i>
-          Filtrer
-        </button>
-        <button
-          type="button"
-          (click)="resetFilters()"
-          class="btn text-white bg-red-600 hover:bg-white hover:text-red-600 outline outline-1 hover:outline-red-600 transition-all duration-300"
-        >
-          <i class="fas fa-times mr-1"></i>
-          Réinitialiser
-        </button>
+        <!-- Accès -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            placeholder="Tous les accès"
+            [(ngModel)]="combos.filterLecture.label"
+            (input)="onComboInput('filterLecture', combos.filterLecture.label)"
+            (focus)="onComboFocus('filterLecture')"
+            (blur)="onComboBlur('filterLecture')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="combos.filterLecture.id !== ''" (mousedown)="clearComboOption('filterLecture')"></i>
+          <ul class="search-dropdown" *ngIf="combos.filterLecture.open">
+            <li *ngIf="combos.filterLecture.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let a of combos.filterLecture.filtered" (mousedown)="selectComboOption('filterLecture', a)">
+              {{ a.libelle }}
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
 
-    <!-- Table -->
+    <!-- ===================== Tableau ===================== -->
     <div class="card custom-width">
+      <div class="flex justify-between items-center flex-wrap gap-2 px-4 pt-4">
+        <p class="font-semibold text-gray-700">Liste des agents</p>
+        <div class="relative w-72">
+          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input
+            type="text"
+            [ngModel]="searchFilters.search"
+            (ngModelChange)="onTableSearch($event)"
+            placeholder="Nom ou email..."
+            class="input-style !pl-9"
+          />
+        </div>
+      </div>
+
       <app-data-table
-        title="Liste des agents"
         [data]="data"
         [columns]="columns"
         [loading]="loading"
@@ -98,7 +126,7 @@
   </div>
 </app-admin-layout>
 
-<!-- Bouton Suspendre / Activer, inséré entre Modifier et Supprimer -->
+<!-- Bouton Suspendre / Activer, inséré entre Modifier et Supprimer (INCHANGÉ) -->
 <ng-template #suspendAction let-item>
   <button
     pButton
@@ -112,7 +140,7 @@
   ></button>
 </ng-template>
 
-<!-- Modal de confirmation Suspendre / Réactiver -->
+<!-- Modal de confirmation Suspendre / Réactiver (INCHANGÉ) -->
 <div class="modal self-center" data-modal="true" [id]="suspendId">
   <app-modal
     [title]="suspendTarget?.deleted_at ? 'Réactiver un utilisateur' : 'Suspendre un utilisateur'"
@@ -160,12 +188,26 @@
   </app-modal>
 </div>
 
-<!-- MODAL AJOUT / MODIFICATION -->
-<div class="modal self-center" data-modal="true" [id]="modalId">
-  <app-modal [title]="editMode ? 'Modifier un utilisateur' : 'Enregistrement utilisateur'">
-    <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
-      <div class="modal-body p-5 overflow-auto max-h-[65vh]">
-        <div class="space-y-4 gap-4">
+<!-- ============ VUE FORMULAIRE PLEIN ÉCRAN (Ajout / Modification) ============ -->
+<app-admin-layout *ngIf="showForm">
+  <div>
+    <div class="flex items-center gap-3 mb-4">
+      <button
+        type="button"
+        (click)="backToList()"
+        class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300"
+      >
+        <i class="fas fa-arrow-left mr-2"></i>
+        Retour à la liste
+      </button>
+      <h1 class="font-bold text-lg text-gray-900">
+        {{ editMode ? 'Modifier l\'utilisateur : ' + (currentItem.name || '') : 'Enregistrement utilisateur' }}
+      </h1>
+    </div>
+
+    <div class="card p-6">
+      <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
+        <div class="space-y-4 gap-4 max-w-3xl">
 
           <!-- Nom -->
           <div class="field">
@@ -201,72 +243,101 @@
             </div>
           </div>
 
-          <!-- Rôle -->
-          <div class="field">
-            <label for="role" class="font-semibold">Rôle <span class="text-red-700">*</span></label>
-            <div class="mt-1">
-              <select
-                [(ngModel)]="currentItem.role"
-                name="role"
-                class="input-style"
-                validate
-                required
-              >
-                <option value="" disabled selected>Choisissez le rôle</option>
-                <option [ngValue]="1">Administrateur</option>
-                <option [ngValue]="2">Agent</option>
-              </select>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Rôle : champ recherchable -->
+            <div class="field">
+              <label class="font-semibold">Rôle <span class="text-red-700">*</span></label>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  placeholder="Choisissez le rôle"
+                  [(ngModel)]="combos.formRole.label"
+                  name="role_label"
+                  (input)="onComboInput('formRole', combos.formRole.label)"
+                  (focus)="onComboFocus('formRole')"
+                  (blur)="onComboBlur('formRole')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="combos.formRole.id !== ''" (mousedown)="clearComboOption('formRole')"></i>
+                <ul class="search-dropdown" *ngIf="combos.formRole.open">
+                  <li *ngIf="combos.formRole.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let r of combos.formRole.filtered" (mousedown)="selectComboOption('formRole', r)">
+                    {{ r.libelle }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Niveau : champ recherchable -->
+            <div class="field">
+              <label class="font-semibold">Niveau <span class="text-red-700">*</span></label>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  placeholder="Choisissez le niveau"
+                  [(ngModel)]="combos.formGrade.label"
+                  name="grade_label"
+                  (input)="onComboInput('formGrade', combos.formGrade.label)"
+                  (focus)="onComboFocus('formGrade')"
+                  (blur)="onComboBlur('formGrade')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="combos.formGrade.id !== ''" (mousedown)="clearComboOption('formGrade')"></i>
+                <ul class="search-dropdown" *ngIf="combos.formGrade.open">
+                  <li *ngIf="combos.formGrade.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let g of combos.formGrade.filtered" (mousedown)="selectComboOption('formGrade', g)">
+                    {{ g.libelle }}
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
 
-          <!-- Niveau -->
-          <div class="field">
-            <label for="grade" class="font-semibold">Niveau <span class="text-red-700">*</span></label>
-            <div class="mt-1">
-              <select
-                [(ngModel)]="currentItem.grade"
-                name="grade"
-                class="input-style"
-                validate
-                required
-              >
-                <option value="" disabled selected>Choisissez le niveau</option>
-                <option [ngValue]="1">GUPS</option>
-                <option [ngValue]="2">Départemental</option>
-                <option [ngValue]="3">National</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- GUPS (si grade == 1) -->
+          <!-- GUPS (si grade == 1) : champ recherchable -->
           <div class="field" *ngIf="currentItem.grade == 1">
-            <label for="gups_id" class="font-semibold">GUPS <span class="text-red-700">*</span></label>
-            <div class="mt-1">
-              <select
-                [(ngModel)]="currentItem.gups_id"
-                name="gups_id"
+            <label class="font-semibold">GUPS <span class="text-red-700">*</span></label>
+            <div class="mt-1 search-combo-wrap">
+              <input
+                type="text"
                 class="input-style"
-                [required]="currentItem.grade == 1"
-              >
-                <option value="" selected>Choisissez le GUPS</option>
-                <option *ngFor="let item of gupsList" [ngValue]="item.id">{{ item.libelle }}</option>
-              </select>
+                placeholder="Rechercher un GUPS..."
+                [(ngModel)]="combos.formGups.label"
+                name="gups_label"
+                (input)="onComboInput('formGups', combos.formGups.label)"
+                (focus)="onComboFocus('formGups')"
+                (blur)="onComboBlur('formGups')"
+              />
+              <i class="fas fa-times clear-icon" *ngIf="combos.formGups.id !== ''" (mousedown)="clearComboOption('formGups')"></i>
+              <ul class="search-dropdown" *ngIf="combos.formGups.open">
+                <li *ngIf="combos.formGups.filtered.length === 0" class="empty">Aucun résultat</li>
+                <li *ngFor="let item of combos.formGups.filtered" (mousedown)="selectComboOption('formGups', item)">
+                  {{ item.libelle }}
+                </li>
+              </ul>
             </div>
           </div>
 
-          <!-- Département (si grade == 2) -->
+          <!-- Département (si grade == 2) : champ recherchable -->
           <div class="field" *ngIf="currentItem.grade == 2">
-            <label for="departement_id" class="font-semibold">Département <span class="text-red-700">*</span></label>
-            <div class="mt-1">
-              <select
-                [(ngModel)]="currentItem.departement_id"
-                name="departement_id"
+            <label class="font-semibold">Département <span class="text-red-700">*</span></label>
+            <div class="mt-1 search-combo-wrap">
+              <input
+                type="text"
                 class="input-style"
-                [required]="currentItem.grade == 2"
-              >
-                <option value="" selected>Choisissez le département</option>
-                <option *ngFor="let dept of departementsList" [ngValue]="dept.id">{{ dept.libelle }}</option>
-              </select>
+                placeholder="Rechercher un département..."
+                [(ngModel)]="combos.formDepartement.label"
+                name="departement_label"
+                (input)="onComboInput('formDepartement', combos.formDepartement.label)"
+                (focus)="onComboFocus('formDepartement')"
+                (blur)="onComboBlur('formDepartement')"
+              />
+              <i class="fas fa-times clear-icon" *ngIf="combos.formDepartement.id !== ''" (mousedown)="clearComboOption('formDepartement')"></i>
+              <ul class="search-dropdown" *ngIf="combos.formDepartement.open">
+                <li *ngIf="combos.formDepartement.filtered.length === 0" class="empty">Aucun résultat</li>
+                <li *ngFor="let dept of combos.formDepartement.filtered" (mousedown)="selectComboOption('formDepartement', dept)">
+                  {{ dept.libelle }}
+                </li>
+              </ul>
             </div>
           </div>
 
@@ -372,28 +443,20 @@
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="modal-footer p-5 border-t border-gray-200">
-        <div class="flex justify-end gap-4">
-          <p-progressSpinner
-            *ngIf="processing"
-            [style]="{ width: '40px', height: '40px' }"
-          ></p-progressSpinner>
-          <p-button
-            icon="fas fa-floppy-disk"
-            label="Enregistrer"
-            styleClass="p-button-success"
-            [disabled]="processing"
-            type="submit"
-          ></p-button>
+        <div class="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
+          <p-progressSpinner *ngIf="processing" [style]="{ width: '40px', height: '40px' }"></p-progressSpinner>
+          <button type="button" (click)="backToList()" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300">
+            Annuler
+          </button>
+          <p-button icon="fas fa-floppy-disk" label="Enregistrer" styleClass="p-button-success" [disabled]="processing" type="submit"></p-button>
         </div>
-      </div>
-    </form>
-  </app-modal>
-</div>
+      </form>
+    </div>
+  </div>
+</app-admin-layout>
 
-<!-- Modal Suppression -->
+<!-- Modal Suppression (INCHANGÉ) -->
 <div class="modal self-center" data-modal="true" [id]="deleteId">
   <app-modal title="Supprimer un utilisateur" [forDelete]="true">
     <div class="modal-body p-5 overflow-auto max-h-[65vh]">

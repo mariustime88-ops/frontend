@@ -1,4 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { AbstractCrudComponent } from '@app/cores/abstracts/abstract-crud-component';
 import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
@@ -77,10 +78,18 @@ export class RendezvousComponent extends AbstractCrudComponent<RendezVous> imple
   override formData: boolean = false; // pas de fichiers -> JSON simple
 
   protected apiHttp = inject(HttpClient);
+  protected activatedRoute = inject(ActivatedRoute);
 
   showForm: boolean = false;
   viewTarget: RendezVous | null = null;
   exporting: boolean = false;
+
+  // ===================== Session active (route data) =====================
+  // true quand on arrive via le menu "Session active" (même composant, route
+  // différente, voir app.routes.ts -> data: { sessionScoped: true }).
+  sessionScoped: boolean = false;
+  // Session dont is_actif = 1, trouvée dans sessionsList une fois chargée.
+  activeSession: any = null;
 
   filterGeo = emptyGeo();
   formGeo = emptyGeo();
@@ -118,6 +127,10 @@ export class RendezvousComponent extends AbstractCrudComponent<RendezVous> imple
     super.ngOnInit();
     this.buildYearsRange();
 
+    // Lu depuis app.routes.ts : { path: Paths.RENDEZVOUS_SESSION, component: RendezvousComponent,
+    // data: { sessionScoped: true } }. Même composant, juste ce flag qui change de route.
+    this.sessionScoped = !!this.activatedRoute.snapshot.data['sessionScoped'];
+
     this.resourceService
       .loadResource<any>('departements', { paginate: true, params: { all: '1' } as any })
       .subscribe((res: any) => {
@@ -131,7 +144,32 @@ export class RendezvousComponent extends AbstractCrudComponent<RendezVous> imple
       .subscribe((res: any) => {
         this.sessionsList = res?.response?.data ?? [];
         this.simpleFiltered.sessions = this.sessionsList;
+
+        // Vue "Session active" : on verrouille filtres + tableau sur la session en cours.
+        if (this.sessionScoped) {
+          this.lockToActiveSession();
+        }
       });
+  }
+
+  // ============================================================
+  //  SESSION ACTIVE
+  //  Cherche dans sessionsList la session avec is_actif = 1 (colonne de `diss_sessions`)
+  //  et verrouille dessus les filtres + le tableau. S'il n'y a aucune session en cours,
+  //  on vide simplement la liste (rien à afficher, rien à ajouter).
+  // ============================================================
+  private lockToActiveSession(): void {
+    this.activeSession = this.sessionsList.find((s: any) => s.is_actif == 1) || null;
+
+    if (!this.activeSession) {
+      this.data = [];
+      return;
+    }
+
+    this.searchFilters.session_id = this.activeSession.id;
+    this.searchFilters.session_label = this.activeSession.libelle;
+    this.setOrDeleteFilter('session_id', this.activeSession.id);
+    this.loadData();
   }
 
   private buildYearsRange(): void {

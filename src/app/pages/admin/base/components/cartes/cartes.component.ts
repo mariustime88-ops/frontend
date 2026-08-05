@@ -26,7 +26,7 @@ export interface CarteEgalite {
   diss_session_id?: number | null;
   personne?: { id: number; nomprenoms: string; npi?: string; date_naissance?: string; sexe?: string };
   departement?: { id: number; libelle: string };
-  gups?: { id: number; libelle: string };
+  gup?: { id: number; libelle: string };
   created_at?: string;
 }
 
@@ -83,6 +83,14 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
   viewTarget: CarteEgalite | null = null;
   exporting: boolean = false;
 
+  // ===================== Recherche du demandeur (personne_id) =====================
+  // Affiché dans le formulaire sous forme "Nom Prénoms — NPI: xxxx", recherché
+  // par nom ou NPI (PersonneController::$searchableFields le supporte déjà).
+  personneLabel: string = '';
+  personneResults: any[] = [];
+  personneSearchOpen: boolean = false;
+  private personneSearchDebounce: any;
+
   selectedFiles: { [key: string]: File } = {};
 
   // ===================== Session active (route data) =====================
@@ -114,7 +122,7 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
 
   columns: Column[] = [
     { field: 'departement.libelle', header: 'Département', filterType: 'text' },
-    { field: 'gups.libelle', header: 'GUPS', filterType: 'text' },
+    { field: 'gup.libelle', header: 'GUPS', filterType: 'text' },
     { field: 'personne.nomprenoms', header: 'Demandeur', filterType: 'text' },
     { field: 'personne.npi', header: 'NPI', filterType: 'text' },
     {
@@ -161,6 +169,29 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
           this.lockToActiveSession();
         }
       });
+
+    // Arrivée depuis le menu "Faire une demande" de demandeurs.component.ts
+    // (?personne_id=X&openForm=1) : on ouvre directement le formulaire d'ajout,
+    // pré-rempli avec le demandeur, au lieu d'atterrir sur le tableau.
+    this.activatedRoute.queryParams.subscribe((params) => {
+      if (params['openForm'] && params['personne_id']) {
+        setTimeout(() => {
+          this.showAddForm();
+          const pid = Number(params['personne_id']);
+          this.currentItem.personne_id = pid;
+          // On récupère le demandeur pour afficher son nom + NPI dans le champ
+          // (sinon personne_id est bien envoyé mais rien ne s'affiche à l'écran).
+          this.apiHttp.get<any>(`${environment.URL_API}/personnes/${pid}`).subscribe({
+            next: (res: any) => {
+              const p = res?.response ?? res?.data ?? res;
+              if (p) {
+                this.personneLabel = `${p.nomprenoms}${p.npi ? ' — NPI: ' + p.npi : ''}`;
+              }
+            },
+          });
+        }, 300);
+      }
+    });
   }
 
   private buildYearsRange(): void {
@@ -317,7 +348,7 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
     }
     if (item.gups_id) {
       this.formGeo.gups.id = item.gups_id;
-      this.formGeo.gups.label = item.gups?.libelle || '';
+      this.formGeo.gups.label = item.gup?.libelle || '';
     }
   }
 
@@ -356,6 +387,46 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
     this.applyFilters();
   }
 
+  // ===================== Demandeur (recherche par nom ou NPI) =====================
+  onPersonneInput(term: string): void {
+    clearTimeout(this.personneSearchDebounce);
+    const t = (term || '').trim();
+    this.currentItem.personne_id = null;
+    if (!t) {
+      this.personneResults = [];
+      this.personneSearchOpen = false;
+      return;
+    }
+    this.personneSearchDebounce = setTimeout(() => {
+      this.resourceService
+        .loadResource<any>('personnes', { paginate: true, params: { search: t, per_page: 10 } as any })
+        .subscribe((res: any) => {
+          this.personneResults = res?.response?.data ?? [];
+          this.personneSearchOpen = true;
+        });
+    }, 300);
+  }
+
+  onPersonneFocus(): void {
+    if (this.personneResults.length) this.personneSearchOpen = true;
+  }
+
+  onPersonneBlur(): void {
+    setTimeout(() => (this.personneSearchOpen = false), 200);
+  }
+
+  selectPersonne(item: any): void {
+    this.currentItem.personne_id = item.id;
+    this.personneLabel = `${item.nomprenoms}${item.npi ? ' — NPI: ' + item.npi : ''}`;
+    this.personneSearchOpen = false;
+  }
+
+  clearPersonne(): void {
+    this.currentItem.personne_id = null;
+    this.personneLabel = '';
+    this.personneResults = [];
+  }
+
   applyFilters(): void {
     this.setOrDeleteFilter('statut_decision', this.searchFilters.statut_decision);
     this.setOrDeleteFilter('annee', this.searchFilters.annee);
@@ -380,6 +451,8 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
   override showAddForm(): void {
     super.showAddForm();
     this.selectedFiles = {};
+    this.personneLabel = '';
+    this.personneResults = [];
     this.formGeo = emptyGeo();
     if (this.filterGeo.departement.list.length) {
       this.formGeo.departement.list = this.filterGeo.departement.list;
@@ -406,6 +479,9 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
   override editItem(item: CarteEgalite): void {
     super.editItem(item);
     this.selectedFiles = {};
+    this.personneLabel = item.personne
+      ? `${item.personne.nomprenoms}${item.personne.npi ? ' — NPI: ' + item.personne.npi : ''}`
+      : '';
     this.initFormGeoFromItem(item);
     this.showForm = true;
   }
@@ -492,13 +568,20 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
     });
   }
 
+  // Clés de pagination/méta injectées dans this.filter par le composant parent —
+  // à exclure de l'export, sinon l'URL devient invalide (ex: meta=[object Object]).
+  private readonly EXPORT_EXCLUDED_KEYS = ['total', 'page', 'totalPages', 'per_page', 'limit', 'meta', 'count'];
+
   exportExcel(): void {
     if (this.exporting) return;
     this.exporting = true;
 
     const params = new URLSearchParams();
     Object.entries(this.filter).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') params.set(key, String(value));
+      if (this.EXPORT_EXCLUDED_KEYS.includes(key)) return;
+      if (value !== null && value !== undefined && value !== '' && typeof value !== 'object') {
+        params.set(key, String(value));
+      }
     });
 
     const url = `${environment.URL_API}/carte_egalites/export?${params.toString()}`;
@@ -515,9 +598,27 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
         link.click();
         window.URL.revokeObjectURL(objectUrl);
       },
-      error: () => {
+      error: (error: any) => {
         this.exporting = false;
-        this.messageService.add({ severity: 'error', summary: 'Erreur', detail: "Impossible d'exporter la liste." });
+        const errorBlob: Blob | undefined = error?.error instanceof Blob ? error.error : undefined;
+        if (errorBlob) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            let detail = `Erreur ${error.status} lors de l'export.`;
+            try {
+              const parsed = JSON.parse(reader.result as string);
+              detail = parsed.message || detail;
+            } catch {}
+            this.messageService.add({ severity: 'error', summary: 'Erreur export', detail, life: 8000 });
+          };
+          reader.readAsText(errorBlob);
+        } else {
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erreur',
+            detail: `Erreur ${error?.status ?? ''} : impossible d'exporter la liste des cartes d'égalité.`,
+          });
+        }
       },
     });
   }

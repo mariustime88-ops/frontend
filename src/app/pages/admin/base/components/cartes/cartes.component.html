@@ -196,7 +196,7 @@
         <div><span class="font-semibold">Date de naissance :</span> {{ viewTarget.personne?.date_naissance || '-' }}</div>
         <div><span class="font-semibold">Sexe :</span> {{ viewTarget.personne?.sexe || '-' }}</div>
         <div><span class="font-semibold">Département :</span> {{ viewTarget.departement?.libelle || '-' }}</div>
-        <div><span class="font-semibold">GUPS :</span> {{ viewTarget.gups?.libelle || '-' }}</div>
+        <div><span class="font-semibold">GUPS :</span> {{ viewTarget.gup?.libelle || '-' }}</div>
         <div><span class="font-semibold">Année :</span> {{ viewTarget.annee || '-' }}</div>
         <div><span class="font-semibold">Statut :</span> {{ viewTarget.statut == 1 ? 'Validé' : (viewTarget.statut == 2 ? 'Rejeté' : 'Non traité') }}</div>
         <div class="md:col-span-2"><span class="font-semibold">Motif :</span> {{ viewTarget.motif || '-' }}</div>
@@ -243,6 +243,29 @@
     <div class="card p-6">
       <form #f="ngForm" (ngSubmit)="onSubmit()">
         <div class="space-y-4 gap-4 max-w-4xl">
+
+          <div class="field">
+            <label class="font-semibold">Demandeur</label>
+            <div class="mt-1 search-combo-wrap">
+              <input
+                type="text"
+                class="input-style"
+                placeholder="Rechercher un demandeur (nom, NPI)..."
+                [(ngModel)]="personneLabel"
+                name="personne_label"
+                (input)="onPersonneInput(personneLabel)"
+                (focus)="onPersonneFocus()"
+                (blur)="onPersonneBlur()"
+              />
+              <i class="fas fa-times clear-icon" *ngIf="currentItem.personne_id" (mousedown)="clearPersonne()"></i>
+              <ul class="search-dropdown" *ngIf="personneSearchOpen">
+                <li *ngIf="personneResults.length === 0" class="empty">Aucun résultat</li>
+                <li *ngFor="let p of personneResults" (mousedown)="selectPersonne(p)">
+                  {{ p.nomprenoms }}<span *ngIf="p.npi"> — NPI: {{ p.npi }}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="field">

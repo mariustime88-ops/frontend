@@ -36,6 +36,45 @@ export interface DemandeInstallation {
   created_at?: string;
 }
 
+// Cascade : Département -> Commune -> GUPS -> Type de kit.
+// Tant que le niveau précédent n'est pas choisi, le niveau suivant reste vide et désactivé
+// (comme la cascade géographique de demandeurs.component.ts). Utilisée à la fois dans les
+// filtres (filterGeo) et dans le formulaire d'ajout/modification (formGeo).
+type GeoLevel = 'departement' | 'commune' | 'gups' | 'typeKit';
+
+interface GeoState {
+  list: any[];
+  filtered: any[];
+  open: boolean;
+  label: string;
+  id: any;
+}
+
+function emptyGeoState(): GeoState {
+  return { list: [], filtered: [], open: false, label: '', id: '' };
+}
+
+function emptyGeo(): { [key in GeoLevel]: GeoState } {
+  return {
+    departement: emptyGeoState(),
+    commune: emptyGeoState(),
+    gups: emptyGeoState(),
+    typeKit: emptyGeoState(),
+  };
+}
+
+const GEO_ORDER: GeoLevel[] = ['departement', 'commune', 'gups', 'typeKit'];
+const GEO_NEXT_RESOURCE: { [key in GeoLevel]?: string } = {
+  departement: 'communes',
+  commune: 'gups',
+  gups: 'type-kits',
+};
+const GEO_PARENT_PARAM: { [key in GeoLevel]?: string } = {
+  departement: 'departement_id',
+  commune: 'commune_id',
+  gups: 'gups_id',
+};
+
 // Champs numériques : une chaîne vide "" revenue du serveur doit être
 // convertie en null avant tout renvoi, sinon Laravel refuse (validation.integer).
 const NUMERIC_FIELDS = [
@@ -63,18 +102,25 @@ export class DemandesinsComponent extends AbstractCrudComponent<DemandeInstallat
   // Bascule entre la vue "liste" et la vue "formulaire plein écran"
   showForm: boolean = false;
 
+  // ===================== Session active (route data) =====================
+  // true quand on arrive via le menu "Session active" (même composant, route
+  // différente, voir app.routes.ts -> data: { sessionScoped: true }).
+  sessionScoped: boolean = false;
+  // Session dont is_actif = 1, trouvée dans sessionsList une fois chargée.
+  activeSession: any = null;
+
+  // Liste "racine" (premier niveau de la cascade) : chargée une fois, partagée
+  // entre les filtres (filterGeo) et le formulaire (formGeo).
   departementsList: any[] = [];
-  communesFormList: any[] = [];
-  communesFilterList: any[] = [];
-  gupsList: any[] = [];
-  typesKitsList: any[] = [];
   personnesList: any[] = [];
 sessionsList: any[] = [];
+
+  // Cascade recherchable des filtres : Département -> Commune -> GUPS -> Type de kit
+  filterGeo = emptyGeo();
+  // Cascade recherchable du formulaire (mêmes 4 niveaux)
+  formGeo = emptyGeo();
+
   searchFilters = {
-    departement_id: '',
-    commune_id: '',
-    gups_id: '',
-    type_kit_id: '', // Ajoutez cette ligne ici
     situation_dossier: '',
     annee_enreg: '',
     session: '',
@@ -93,7 +139,7 @@ sessionsList: any[] = [];
   toggleId: string = 'toggle_appuye';
 
   columns: Column[] = [
-    { field: 'personne.nomprenoms', header: 'Demandeursss', filterType: 'text' },
+    { field: 'personne.nomprenoms', header: 'Demandeurs', filterType: 'text' },
     { field: 'departement.libelle', header: 'Département', filterType: 'text' },
     { field: 'montant_demande', header: 'Montant demandé', filterType: 'text' },
     { field: 'montant_accorde', header: 'Montant accordé', filterType: 'text' },
@@ -122,6 +168,10 @@ sessionsList: any[] = [];
     this.buildYearsRange();
     this.loadLists();
 
+    // Lu depuis app.routes.ts : { path: Paths.DEMANDESINS_SESSION, component: DemandesinsComponent,
+    // data: { sessionScoped: true } }. Même composant, juste ce flag qui change de route.
+    this.sessionScoped = !!this.route.snapshot.data['sessionScoped'];
+
     
     this.route.queryParams.subscribe(params => {
       if (params['personne_id']) {
@@ -133,19 +183,25 @@ sessionsList: any[] = [];
       }
     });
   }
-// --- Recherche en temps réel (barre de recherche au-dessus du tableau, comme demandeurs) ---
+
+  // --- Recherche en temps réel (barre de recherche au-dessus du tableau, comme demandeurs) ---
   private searchDebounce: any;
+
+  // Évite l'erreur TS2790 (delete sur une propriété non optionnelle) en passant
+  // par une clé générique de type string, comme dans demandeurs.component.ts.
+  private setOrDeleteFilter(key: string, value: any): void {
+    if (value === null || value === undefined || value === '') {
+      delete this.filter[key];
+    } else {
+      this.filter[key] = value;
+    }
+  }
 
   onTableSearch(term: string): void {
     clearTimeout(this.searchDebounce);
     this.searchDebounce = setTimeout(() => {
       this.searchFilters.search = term;
-      const value = (term || '').trim();
-      if (value) {
-        this.filter['search'] = value;
-      } else {
-        delete (this.filter as any)['search'];
-      }
+      this.setOrDeleteFilter('search', (term || '').trim());
       this.filter.page = 1;
       this.data = [];
       this.loadData();
@@ -168,90 +224,220 @@ sessionsList: any[] = [];
     return `${day}/${month}/${d.getFullYear()}`;
   }
 
-  
- loadLists(): void {
-    // 1. Départements
+  loadLists(): void {
+    // 1. Départements (premier niveau de la cascade filtres + formulaire)
     this.resourceService
       .loadResource<any>('departements', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.departementsList = res?.response?.data ?? res?.data ?? []));
+      .subscribe((res: any) => {
+        const list = res?.response?.data ?? res?.data ?? [];
+        this.departementsList = list;
+        this.filterGeo.departement.list = list;
+        this.filterGeo.departement.filtered = list;
+      });
 
-    // 2. GUPS
-    this.resourceService
-      .loadResource<any>('gups', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.gupsList = res?.response?.data ?? res?.data ?? []));
-
-    // 3. Types de kits (Vérifiez si la route API est 'type-kits' ou 'type_kits')
-    this.resourceService
-      .loadResource<any>('type-kits', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.typesKitsList = res?.response?.data ?? res?.data ?? []));
-
-    // 4. Personnes
+    // 2. Personnes
     this.resourceService
       .loadResource<any>('personnes', { paginate: true, params: { all: '1' } as any })
       .subscribe((res: any) => (this.personnesList = res?.response?.data ?? res?.data ?? []));
 
-    // 5. Sessions (Modifiez 'sessions' par le nom exact de votre route API si besoin, ex: 'annee-sessions')
+    // 3. Sessions (Modifiez 'sessions' par le nom exact de votre route API si besoin, ex: 'annee-sessions')
     this.resourceService
       .loadResource<any>('sessions', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.sessionsList = res?.response?.data ?? res?.data ?? []));
+      .subscribe((res: any) => {
+        this.sessionsList = res?.response?.data ?? res?.data ?? [];
+
+        // Vue "Session active" : on verrouille filtres + tableau sur la session en cours.
+        if (this.sessionScoped) {
+          this.lockToActiveSession();
+        }
+      });
   }
-  // --- Filtres (auto-application, pas de bouton) ---
-  onFilterDepartementChange(): void {
-    this.searchFilters.commune_id = '';
-    this.communesFilterList = [];
-    if (this.searchFilters.departement_id) {
+
+  // ============================================================
+  //  SESSION ACTIVE
+  //  Cherche dans sessionsList la session avec is_actif = 1 (colonne de `diss_sessions`)
+  //  et verrouille dessus les filtres + le tableau. S'il n'y a aucune session en cours,
+  //  on vide simplement la liste (rien à afficher, rien à ajouter).
+  // ============================================================
+  private lockToActiveSession(): void {
+    this.activeSession = this.sessionsList.find((s: any) => s.is_actif == 1) || null;
+
+    if (!this.activeSession) {
+      this.data = [];
+      return;
+    }
+
+    this.searchFilters.session = this.activeSession.id;
+    this.applyFilters();
+  }
+
+  // ============================================================
+  //  CASCADE RECHERCHABLE GÉNÉRIQUE : Département -> Commune -> GUPS -> Type de kit
+  //  Utilisée à la fois par les filtres (target='filterGeo') et le formulaire (target='formGeo').
+  //  Un niveau reste vide/désactivé tant que le niveau précédent n'a pas été choisi.
+  // ============================================================
+  private geoStateOf(target: 'filterGeo' | 'formGeo'): { [key in GeoLevel]: GeoState } {
+    return target === 'filterGeo' ? this.filterGeo : this.formGeo;
+  }
+
+  onGeoInput(target: 'filterGeo' | 'formGeo', level: GeoLevel, term: string): void {
+    const state = this.geoStateOf(target)[level];
+    const t = (term || '').toLowerCase().trim();
+    state.filtered = t ? state.list.filter((i) => (i.libelle || '').toLowerCase().includes(t)) : state.list;
+    state.open = true;
+  }
+
+  onGeoFocus(target: 'filterGeo' | 'formGeo', level: GeoLevel): void {
+    const state = this.geoStateOf(target)[level];
+    state.filtered = state.list;
+    state.open = true;
+  }
+
+  onGeoBlur(target: 'filterGeo' | 'formGeo', level: GeoLevel): void {
+    const state = this.geoStateOf(target)[level];
+    setTimeout(() => (state.open = false), 200);
+  }
+
+  isGeoDisabled(target: 'filterGeo' | 'formGeo', level: GeoLevel): boolean {
+    const idx = GEO_ORDER.indexOf(level);
+    if (idx === 0) return false;
+    const parentLevel = GEO_ORDER[idx - 1];
+    return !this.geoStateOf(target)[parentLevel].id;
+  }
+
+  selectGeoOption(target: 'filterGeo' | 'formGeo', level: GeoLevel, item: any): void {
+    const geo = this.geoStateOf(target);
+    geo[level].id = item.id;
+    geo[level].label = item.libelle;
+    geo[level].open = false;
+
+    // Les niveaux suivants sont réinitialisés (vidés + désactivés) à chaque nouveau choix.
+    const idx = GEO_ORDER.indexOf(level);
+    for (let i = idx + 1; i < GEO_ORDER.length; i++) {
+      geo[GEO_ORDER[i]] = emptyGeoState();
+    }
+
+    this.loadNextGeoLevel(target, level, item.id);
+    this.syncGeoToModel(target);
+  }
+
+  clearGeoOption(target: 'filterGeo' | 'formGeo', level: GeoLevel): void {
+    const geo = this.geoStateOf(target);
+    const idx = GEO_ORDER.indexOf(level);
+    for (let i = idx; i < GEO_ORDER.length; i++) {
+      geo[GEO_ORDER[i]] = emptyGeoState();
+    }
+    this.syncGeoToModel(target);
+  }
+
+  private loadNextGeoLevel(target: 'filterGeo' | 'formGeo', level: GeoLevel, parentId: any): void {
+    const nextResource = GEO_NEXT_RESOURCE[level];
+    const parentParam = GEO_PARENT_PARAM[level];
+    const nextLevel = GEO_ORDER[GEO_ORDER.indexOf(level) + 1];
+    if (!nextResource || !parentParam || !nextLevel) return;
+
+    this.resourceService
+      .loadResource<any>(nextResource, { paginate: true, params: { all: '1', [parentParam]: parentId } as any })
+      .subscribe((res: any) => {
+        const list = res?.response?.data ?? res?.data ?? [];
+        const geo = this.geoStateOf(target);
+        geo[nextLevel].list = list;
+        geo[nextLevel].filtered = list;
+      });
+  }
+
+  private syncGeoToModel(target: 'filterGeo' | 'formGeo'): void {
+    if (target === 'filterGeo') {
+      this.applyFilters();
+    } else {
+      const geo = this.formGeo;
+      this.currentItem.departement_id = geo.departement.id || null;
+      this.currentItem.commune_id = geo.commune.id || null;
+      this.currentItem.gups_id = geo.gups.id || null;
+      this.currentItem.type_kit_id = geo.typeKit.id || null;
+    }
+  }
+
+  // Pré-remplit la cascade du formulaire à partir d'un dossier existant (modification),
+  // en rechargeant chaque niveau suivant à partir de son parent, comme demandeurs.component.ts.
+  private initFormGeoFromItem(item: DemandeInstallation): void {
+    this.formGeo = emptyGeo();
+
+    if (this.departementsList.length) {
+      this.formGeo.departement.list = this.departementsList;
+      this.formGeo.departement.filtered = this.departementsList;
+    }
+
+    if (item.departement_id) {
+      this.formGeo.departement.id = item.departement_id;
+      this.formGeo.departement.label = item.departement?.libelle || '';
       this.resourceService
-        .loadResource<any>('communes', {
-          paginate: true,
-          params: { all: '1', departement_id: this.searchFilters.departement_id } as any,
-        })
+        .loadResource<any>('communes', { paginate: true, params: { all: '1', departement_id: item.departement_id } as any })
         .subscribe((res: any) => {
-          this.communesFilterList = res?.response?.data ?? res?.data ?? [];
+          const list = res?.response?.data ?? res?.data ?? [];
+          this.formGeo.commune.list = list;
+          this.formGeo.commune.filtered = list;
         });
     }
+    if (item.commune_id) {
+      this.formGeo.commune.id = item.commune_id;
+      this.formGeo.commune.label = item.commune?.libelle || '';
+      this.resourceService
+        .loadResource<any>('gups', { paginate: true, params: { all: '1', commune_id: item.commune_id } as any })
+        .subscribe((res: any) => {
+          const list = res?.response?.data ?? res?.data ?? [];
+          this.formGeo.gups.list = list;
+          this.formGeo.gups.filtered = list;
+        });
+    }
+    if (item.gups_id) {
+      this.formGeo.gups.id = item.gups_id;
+      this.formGeo.gups.label = item.gups?.libelle || '';
+      this.resourceService
+        .loadResource<any>('type-kits', { paginate: true, params: { all: '1', gups_id: item.gups_id } as any })
+        .subscribe((res: any) => {
+          const list = res?.response?.data ?? res?.data ?? [];
+          this.formGeo.typeKit.list = list;
+          this.formGeo.typeKit.filtered = list;
+        });
+    }
+    if (item.type_kit_id) {
+      this.formGeo.typeKit.id = item.type_kit_id;
+      this.formGeo.typeKit.label = item.type_kit?.libelle || '';
+    }
+  }
+
+  // --- Selects simples auto-filtrants (session, décision, année) ---
+  onSimpleSelectChange(): void {
     this.applyFilters();
   }
 
   applyFilters(): void {
-    this.filter['departement_id'] = this.searchFilters.departement_id;
-    this.filter['commune_id'] = this.searchFilters.commune_id;
-    this.filter['gups_id'] = this.searchFilters.gups_id;
-    this.filter['type_kit_id'] = this.searchFilters.type_kit_id; // Ajoutez cette ligne ici
-    this.filter['situation_dossier'] = this.searchFilters.situation_dossier;
-    this.filter['annee_enreg'] = this.searchFilters.annee_enreg;
-    this.filter['session'] = this.searchFilters.session; // Ajouté ici
+    this.setOrDeleteFilter('departement_id', this.filterGeo.departement.id);
+    this.setOrDeleteFilter('commune_id', this.filterGeo.commune.id);
+    this.setOrDeleteFilter('gups_id', this.filterGeo.gups.id);
+    this.setOrDeleteFilter('type_kit_id', this.filterGeo.typeKit.id);
+    this.setOrDeleteFilter('situation_dossier', this.searchFilters.situation_dossier);
+    this.setOrDeleteFilter('annee_enreg', this.searchFilters.annee_enreg);
+    this.setOrDeleteFilter('session', this.searchFilters.session);
     this.data = [];
     this.loadData();
   }
 
- resetFilters(): void {
+  resetFilters(): void {
+    this.filterGeo = emptyGeo();
+    if (this.departementsList.length) {
+      this.filterGeo.departement.list = this.departementsList;
+      this.filterGeo.departement.filtered = this.departementsList;
+    }
     this.searchFilters = {
-      departement_id: '',
-      commune_id: '',
-      gups_id: '',
-      type_kit_id: '',
       session: '',
       situation_dossier: '',
       annee_enreg: '',
       search: '',
     };
-    this.communesFilterList = [];
-    delete (this.filter as any)['search'];
+    this.setOrDeleteFilter('search', '');
     this.applyFilters();
-  }
-
-  // --- Cascade du formulaire ---
-  onFormDepartementChange(): void {
-    this.currentItem.commune_id = null;
-    this.communesFormList = [];
-    if (!this.currentItem.departement_id) return;
-
-    this.resourceService
-      .loadResource<any>('communes', {
-        paginate: true,
-        params: { all: '1', departement_id: this.currentItem.departement_id } as any,
-      })
-      .subscribe((res: any) => (this.communesFormList = res?.response?.data ?? []));
   }
 
   onFileSelected(event: any, fieldName: string): void {
@@ -265,7 +451,11 @@ sessionsList: any[] = [];
   override showAddForm(): void {
     super.showAddForm();
     this.selectedFiles = {};
-    this.communesFormList = [];
+    this.formGeo = emptyGeo();
+    if (this.departementsList.length) {
+      this.formGeo.departement.list = this.departementsList;
+      this.formGeo.departement.filtered = this.departementsList;
+    }
     this.currentItem = {
       id: 0,
       annee_enreg: new Date().getFullYear(),
@@ -295,15 +485,7 @@ sessionsList: any[] = [];
   override editItem(item: DemandeInstallation): void {
     super.editItem(item);
     this.selectedFiles = {};
-
-    if (item.departement_id) {
-      this.resourceService
-        .loadResource<any>('communes', {
-          paginate: true,
-          params: { all: '1', departement_id: item.departement_id } as any,
-        })
-        .subscribe((res: any) => (this.communesFormList = res?.response?.data ?? []));
-    }
+    this.initFormGeoFromItem(item);
     this.showForm = true;
   }
 

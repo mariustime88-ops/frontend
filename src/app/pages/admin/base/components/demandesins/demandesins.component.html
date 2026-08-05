@@ -2,42 +2,129 @@
 <app-admin-layout *ngIf="!showForm">
   <div>
     <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
-      <h1 class="font-bold text-lg text-gray-900">Gestion des demandes d'installation</h1>
-      <button
-        class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300"
-        (click)="showAddForm()"
-      >
-        <i class="fas fa-plus-circle"></i>
-        Ajouter une demande
-      </button>
+      <h1 class="font-bold text-lg text-gray-900">
+        {{ sessionScoped
+            ? ('Session active : ' + (activeSession?.libelle || '—'))
+            : "Gestion des demandes d'installation" }}
+      </h1>
+      <div class="flex gap-2">
+        <button
+          *ngIf="sessionScoped"
+          class="btn bg-[var(--tw-main-blue)] text-white hover:bg-transparent hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[#023E7A] justify-center text-sm transition-all duration-300"
+          (click)="showAddForm()"
+        >
+          <i class="fas fa-plus-circle"></i>
+          Ajouter une demande
+        </button>
+        <button
+          type="button"
+          (click)="exportExcel()"
+          [disabled]="exporting"
+          class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
+        >
+          <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
+          <i class="fas fa-file-excel" *ngIf="!exporting"></i>
+          Exporter
+        </button>
+        
+      </div>
     </div>
 
    <!-- Filtres automatiques (sans bouton réinitialiser) -->
     <div class="card custom-width p-4 mb-3">
+
+      <!-- Vue "Session active" mais aucune session marquée en cours -->
+      <div *ngIf="sessionScoped && !activeSession" class="text-sm text-red-600 mb-3">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        Aucune session n'est actuellement en cours.
+      </div>
+
       <div class="flex flex-wrap items-center gap-3">
-        <select [(ngModel)]="searchFilters.departement_id" (change)="onFilterDepartementChange()" class="select-filter">
-          <option value="">Tous les départements</option>
-          <option *ngFor="let d of departementsList" [value]="d.id">{{ d.libelle }}</option>
-        </select>
+        <!-- Département -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            placeholder="Tous les départements"
+            [(ngModel)]="filterGeo.departement.label"
+            (input)="onGeoInput('filterGeo', 'departement', filterGeo.departement.label)"
+            (focus)="onGeoFocus('filterGeo', 'departement')"
+            (blur)="onGeoBlur('filterGeo', 'departement')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.departement.id" (mousedown)="clearGeoOption('filterGeo', 'departement')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.departement.open">
+            <li *ngIf="filterGeo.departement.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let d of filterGeo.departement.filtered" (mousedown)="selectGeoOption('filterGeo', 'departement', d)">
+              {{ d.libelle }}
+            </li>
+          </ul>
+        </div>
 
-        <select [(ngModel)]="searchFilters.commune_id" (change)="applyFilters()" class="select-filter">
-          <option value="">Toutes les communes</option>
-          <option *ngFor="let c of communesFilterList" [value]="c.id">{{ c.libelle }}</option>
-        </select>
+        <!-- Commune (dépend du département) -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            [placeholder]="isGeoDisabled('filterGeo','commune') ? 'Choisir un département d\'abord' : 'Toutes les communes'"
+            [disabled]="isGeoDisabled('filterGeo','commune')"
+            [(ngModel)]="filterGeo.commune.label"
+            (input)="onGeoInput('filterGeo', 'commune', filterGeo.commune.label)"
+            (focus)="onGeoFocus('filterGeo', 'commune')"
+            (blur)="onGeoBlur('filterGeo', 'commune')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.commune.id" (mousedown)="clearGeoOption('filterGeo', 'commune')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.commune.open">
+            <li *ngIf="filterGeo.commune.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let c of filterGeo.commune.filtered" (mousedown)="selectGeoOption('filterGeo', 'commune', c)">
+              {{ c.libelle }}
+            </li>
+          </ul>
+        </div>
 
-        <select [(ngModel)]="searchFilters.gups_id" (change)="applyFilters()" class="select-filter">
-          <option value="">Tous les GUPS</option>
-          <option *ngFor="let g of gupsList" [value]="g.id">{{ g.libelle }}</option>
-        </select>
+        <!-- GUPS (dépend de la commune) -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            [placeholder]="isGeoDisabled('filterGeo','gups') ? 'Choisir une commune d\'abord' : 'Tous les GUPS'"
+            [disabled]="isGeoDisabled('filterGeo','gups')"
+            [(ngModel)]="filterGeo.gups.label"
+            (input)="onGeoInput('filterGeo', 'gups', filterGeo.gups.label)"
+            (focus)="onGeoFocus('filterGeo', 'gups')"
+            (blur)="onGeoBlur('filterGeo', 'gups')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.gups.id" (mousedown)="clearGeoOption('filterGeo', 'gups')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.gups.open">
+            <li *ngIf="filterGeo.gups.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let g of filterGeo.gups.filtered" (mousedown)="selectGeoOption('filterGeo', 'gups', g)">
+              {{ g.libelle }}
+            </li>
+          </ul>
+        </div>
 
-        <!-- Filtre Type de Kit automatique -->
-        <select [(ngModel)]="searchFilters.type_kit_id" (change)="applyFilters()" class="select-filter">
-          <option value="">Tous les types de kits</option>
-          <option *ngFor="let tk of typesKitsList" [value]="tk.id">{{ tk.libelle }}</option>
-        </select>
+        <!-- Type de Kit (dépend du GUPS) -->
+        <div class="search-combo-wrap">
+          <input
+            type="text"
+            class="select-filter"
+            [placeholder]="isGeoDisabled('filterGeo','typeKit') ? 'Choisir un GUPS d\'abord' : 'Tous les types de kits'"
+            [disabled]="isGeoDisabled('filterGeo','typeKit')"
+            [(ngModel)]="filterGeo.typeKit.label"
+            (input)="onGeoInput('filterGeo', 'typeKit', filterGeo.typeKit.label)"
+            (focus)="onGeoFocus('filterGeo', 'typeKit')"
+            (blur)="onGeoBlur('filterGeo', 'typeKit')"
+          />
+          <i class="fas fa-times clear-icon" *ngIf="filterGeo.typeKit.id" (mousedown)="clearGeoOption('filterGeo', 'typeKit')"></i>
+          <ul class="search-dropdown" *ngIf="filterGeo.typeKit.open">
+            <li *ngIf="filterGeo.typeKit.filtered.length === 0" class="empty">Aucun résultat</li>
+            <li *ngFor="let tk of filterGeo.typeKit.filtered" (mousedown)="selectGeoOption('filterGeo', 'typeKit', tk)">
+              {{ tk.libelle }}
+            </li>
+          </ul>
+        </div>
 
-        <!-- Filtre Toutes les sessions (remplace l'ancienne année) -->
-        <select [(ngModel)]="searchFilters.session" (change)="applyFilters()" class="select-filter">
+        <!-- Filtre Toutes les sessions (remplace l'ancienne année) : masqué en vue "Session active" -->
+        <select *ngIf="!sessionScoped" [(ngModel)]="searchFilters.session" (change)="applyFilters()" class="select-filter">
           <option value="">Toutes les sessions</option>
           <option *ngFor="let s of sessionsList" [value]="s.id || s">{{ s.libelle || s }}</option>
         </select>
@@ -54,27 +141,15 @@
     <div class="card custom-width">
       <div class="flex justify-between items-center flex-wrap gap-2 px-4 pt-4">
         <p class="font-semibold text-gray-700">Liste des demandes d'installation</p>
-        <div class="flex items-center gap-3">
-          <div class="relative w-72">
-            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-            <input
-              type="text"
-              [ngModel]="searchFilters.search"
-              (ngModelChange)="onTableSearch($event)"
-              placeholder="Demandeur, NPI, contact..."
-              class="input-style !pl-9"
-            />
-          </div>
-          <button
-            type="button"
-            (click)="exportExcel()"
-            [disabled]="exporting"
-            class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
-          >
-            <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
-            <i class="fas fa-file-excel" *ngIf="!exporting"></i>
-            Exporter
-          </button>
+        <div class="relative w-72">
+          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input
+            type="text"
+            [ngModel]="searchFilters.search"
+            (ngModelChange)="onTableSearch($event)"
+            placeholder="Demandeur, NPI, contact..."
+            class="input-style !pl-9"
+          />
         </div>
       </div>
 
@@ -244,20 +319,47 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="field">
               <label class="font-semibold">Département</label>
-              <div class="mt-1">
-                <select [(ngModel)]="currentItem.departement_id" name="departement_id" (change)="onFormDepartementChange()" class="input-style">
-                  <option [ngValue]="null">Choisir un département</option>
-                  <option *ngFor="let d of departementsList" [ngValue]="d.id">{{ d.libelle }}</option>
-                </select>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  placeholder="Rechercher un département..."
+                  [(ngModel)]="formGeo.departement.label"
+                  name="departement_label"
+                  (input)="onGeoInput('formGeo', 'departement', formGeo.departement.label)"
+                  (focus)="onGeoFocus('formGeo', 'departement')"
+                  (blur)="onGeoBlur('formGeo', 'departement')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.departement.id" (mousedown)="clearGeoOption('formGeo', 'departement')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.departement.open">
+                  <li *ngIf="formGeo.departement.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let d of formGeo.departement.filtered" (mousedown)="selectGeoOption('formGeo', 'departement', d)">
+                    {{ d.libelle }}
+                  </li>
+                </ul>
               </div>
             </div>
             <div class="field">
               <label class="font-semibold">Commune</label>
-              <div class="mt-1">
-                <select [(ngModel)]="currentItem.commune_id" name="commune_id" class="input-style">
-                  <option [ngValue]="null">Choisir une commune</option>
-                  <option *ngFor="let c of communesFormList" [ngValue]="c.id">{{ c.libelle }}</option>
-                </select>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  [placeholder]="isGeoDisabled('formGeo','commune') ? 'Choisir un département d\'abord' : 'Rechercher une commune...'"
+                  [disabled]="isGeoDisabled('formGeo','commune')"
+                  [(ngModel)]="formGeo.commune.label"
+                  name="commune_label"
+                  (input)="onGeoInput('formGeo', 'commune', formGeo.commune.label)"
+                  (focus)="onGeoFocus('formGeo', 'commune')"
+                  (blur)="onGeoBlur('formGeo', 'commune')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.commune.id" (mousedown)="clearGeoOption('formGeo', 'commune')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.commune.open">
+                  <li *ngIf="formGeo.commune.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let c of formGeo.commune.filtered" (mousedown)="selectGeoOption('formGeo', 'commune', c)">
+                    {{ c.libelle }}
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
@@ -265,20 +367,48 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="field">
               <label class="font-semibold">GUPS</label>
-              <div class="mt-1">
-                <select [(ngModel)]="currentItem.gups_id" name="gups_id" class="input-style">
-                  <option [ngValue]="null">Choisir un GUPS</option>
-                  <option *ngFor="let g of gupsList" [ngValue]="g.id">{{ g.libelle }}</option>
-                </select>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  [placeholder]="isGeoDisabled('formGeo','gups') ? 'Choisir une commune d\'abord' : 'Rechercher un GUPS...'"
+                  [disabled]="isGeoDisabled('formGeo','gups')"
+                  [(ngModel)]="formGeo.gups.label"
+                  name="gups_label"
+                  (input)="onGeoInput('formGeo', 'gups', formGeo.gups.label)"
+                  (focus)="onGeoFocus('formGeo', 'gups')"
+                  (blur)="onGeoBlur('formGeo', 'gups')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.gups.id" (mousedown)="clearGeoOption('formGeo', 'gups')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.gups.open">
+                  <li *ngIf="formGeo.gups.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let g of formGeo.gups.filtered" (mousedown)="selectGeoOption('formGeo', 'gups', g)">
+                    {{ g.libelle }}
+                  </li>
+                </ul>
               </div>
             </div>
             <div class="field">
               <label class="font-semibold">Type de Kit</label>
-              <div class="mt-1">
-                <select [(ngModel)]="currentItem.type_kit_id" name="type_kit_id" class="input-style">
-                  <option [ngValue]="null">Choisir un type de kit</option>
-                  <option *ngFor="let tk of typesKitsList" [ngValue]="tk.id">{{ tk.libelle }}</option>
-                </select>
+              <div class="mt-1 search-combo-wrap">
+                <input
+                  type="text"
+                  class="input-style"
+                  [placeholder]="isGeoDisabled('formGeo','typeKit') ? 'Choisir un GUPS d\'abord' : 'Rechercher un type de kit...'"
+                  [disabled]="isGeoDisabled('formGeo','typeKit')"
+                  [(ngModel)]="formGeo.typeKit.label"
+                  name="type_kit_label"
+                  (input)="onGeoInput('formGeo', 'typeKit', formGeo.typeKit.label)"
+                  (focus)="onGeoFocus('formGeo', 'typeKit')"
+                  (blur)="onGeoBlur('formGeo', 'typeKit')"
+                />
+                <i class="fas fa-times clear-icon" *ngIf="formGeo.typeKit.id" (mousedown)="clearGeoOption('formGeo', 'typeKit')"></i>
+                <ul class="search-dropdown" *ngIf="formGeo.typeKit.open">
+                  <li *ngIf="formGeo.typeKit.filtered.length === 0" class="empty">Aucun résultat</li>
+                  <li *ngFor="let tk of formGeo.typeKit.filtered" (mousedown)="selectGeoOption('formGeo', 'typeKit', tk)">
+                    {{ tk.libelle }}
+                  </li>
+                </ul>
               </div>
             </div>
           </div>

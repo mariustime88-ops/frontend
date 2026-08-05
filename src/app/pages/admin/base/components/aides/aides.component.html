@@ -7,6 +7,8 @@
             ? ('Session active : ' + (activeSession?.libelle || '—'))
             : "Base de données complète des demandes d'aide technique de mobilité" }}
       </h1>
+            <div class="flex gap-2">
+
       <button
         *ngIf="sessionScoped"
         type="button"
@@ -16,6 +18,17 @@
         <i class="fas fa-plus"></i>
         Ajouter
       </button>
+      <button
+            type="button"
+            (click)="exportExcel()"
+            [disabled]="exporting"
+            class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
+          >
+            <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
+            <i class="fas fa-file-excel" *ngIf="!exporting"></i>
+            Exporter
+          </button>
+    </div>
     </div>
 
     <!-- ===================== Filtres (automatiques, pas de bouton) ===================== -->
@@ -113,16 +126,7 @@
               class="input-style !pl-9"
             />
           </div>
-          <button
-            type="button"
-            (click)="exportExcel()"
-            [disabled]="exporting"
-            class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
-          >
-            <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
-            <i class="fas fa-file-excel" *ngIf="!exporting"></i>
-            Exporter
-          </button>
+          
         </div>
       </div>
 

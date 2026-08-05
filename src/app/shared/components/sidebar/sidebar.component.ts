@@ -45,18 +45,18 @@ export class SidebarComponent implements OnInit {
         guarded: true,
         children: [
 
-          {
-            label: 'Demandeurs',
-            link: '-----',
-            icon: 'users',
-            guarded: true,
-          },
-          {
-            label: 'Étudiants',
-            link: 'staff/etudiants',
-            icon: 'graduation-cap',
-            guarded: true,
-          },
+         {
+  label: 'Demandeurs',
+  link: 'staff/session-active/demandeurs',
+  icon: 'users',
+  guarded: true,
+},
+        {
+  label: 'Étudiants handicapés',
+  link: 'staff/session-active/etudiantshands',
+  icon: 'folder',
+  guarded: true,
+},
          {
   label: 'Cartes d\'égalité',
   link: 'staff/session-active/cartes',
@@ -69,24 +69,24 @@ export class SidebarComponent implements OnInit {
   icon: 'folder',
   guarded: true,
 },
-          {
-            label: "Demandes d'installation",
-            link: 'staff/demandes-installation',
-            icon: 'tools',
-            guarded: true,
-          },
+        {
+  label: "Demandes d'installation",
+  link: 'staff/session-active/demandesins',
+  icon: 'folder',
+  guarded: true,
+},
           {
   label: 'Demandes de crédit',
   link: 'staff/session-active/demandescre',
   icon: 'credit-card',
   guarded: true,
 },
-          {
-            label: 'Rendez-vous',
-            link: 'staff/rendez-vous',
-            icon: 'calendar-alt',
-            guarded: true,
-          },
+         {
+  label: 'Rendez-vous',
+  link: 'staff/session-active/rendezvous',
+  icon: 'folder',
+  guarded: true,
+},
          {
   label: 'Établissements inclusifs',
   link: 'staff/session-active/etablissements',

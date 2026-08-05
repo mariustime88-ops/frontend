@@ -1,4 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { AbstractCrudComponent } from '@app/cores/abstracts/abstract-crud-component';
 import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
@@ -95,6 +96,14 @@ export class DemandeursComponent extends AbstractCrudComponent<Personne> impleme
   viewDetailsId: string = 'view_personne';
 
   protected apiHttp = inject(HttpClient);
+  protected activatedRoute = inject(ActivatedRoute);
+
+  // ===================== Session active (route data) =====================
+  // true quand on arrive via le menu "Session active" (même composant, route
+  // différente, voir app.routes.ts -> data: { sessionScoped: true }).
+  sessionScoped: boolean = false;
+  // Session dont is_actif = 1, trouvée dans sessionsList une fois chargée.
+  activeSession: any = null;
 
   // Vue liste <-> formulaire plein écran (comme les autres modules)
   showForm: boolean = false;
@@ -128,7 +137,7 @@ export class DemandeursComponent extends AbstractCrudComponent<Personne> impleme
   };
 
   columns: Column[] = [
-    { field: 'nomprenoms', header: 'Nomsss et Prénoms', filterType: 'text' },
+    { field: 'nomprenoms', header: 'Nom et Prénoms', filterType: 'text' },
     { field: 'departement.libelle', header: 'Département', filterType: 'text' },
     { field: 'age', header: 'Age', filterType: 'text' },
     { field: 'sexe', header: 'Sexe', filterType: 'text' },
@@ -155,6 +164,10 @@ export class DemandeursComponent extends AbstractCrudComponent<Personne> impleme
     super.ngOnInit();
     this.buildYearsRange();
 
+    // Lu depuis app.routes.ts : { path: Paths.DEMANDEURS_SESSION, component: DemandeursComponent,
+    // data: { sessionScoped: true } }. Même composant, juste ce flag qui change de route.
+    this.sessionScoped = !!this.activatedRoute.snapshot.data['sessionScoped'];
+
     this.resourceService
       .loadResource<any>('departements', { paginate: true, params: { all: '1' } as any })
       .subscribe((res: any) => {
@@ -168,6 +181,11 @@ export class DemandeursComponent extends AbstractCrudComponent<Personne> impleme
       .subscribe((res: any) => {
         this.sessionsList = res?.response?.data ?? [];
         this.simpleFiltered.sessions = this.sessionsList;
+
+        // Vue "Session active" : on verrouille filtres + tableau sur la session en cours.
+        if (this.sessionScoped) {
+          this.lockToActiveSession();
+        }
       });
 
     this.resourceService
@@ -176,6 +194,26 @@ export class DemandeursComponent extends AbstractCrudComponent<Personne> impleme
         this.professionsList = res?.response?.data ?? [];
         this.simpleFiltered.professions = this.professionsList;
       });
+  }
+
+  // ============================================================
+  //  SESSION ACTIVE
+  //  Cherche dans sessionsList la session avec is_actif = 1 (colonne de `diss_sessions`)
+  //  et verrouille dessus les filtres + le tableau. S'il n'y a aucune session en cours,
+  //  on vide simplement la liste (rien à afficher).
+  // ============================================================
+  private lockToActiveSession(): void {
+    this.activeSession = this.sessionsList.find((s: any) => s.is_actif == 1) || null;
+
+    if (!this.activeSession) {
+      this.data = [];
+      return;
+    }
+
+    this.searchFilters.session_id = this.activeSession.id;
+    this.searchFilters.session_label = this.activeSession.libelle;
+    this.setOrDeleteFilter('session_id', this.activeSession.id);
+    this.loadData();
   }
 
   private formatDate(value: string): string {
@@ -518,16 +556,26 @@ export class DemandeursComponent extends AbstractCrudComponent<Personne> impleme
     this.dropdownItem = null;
   }
 
+  // ⚠️ Correctif : les chemins utilisés ici ('staff/demandes-installation', etc.)
+  // n'existaient dans aucune route déclarée (app.routes.ts définit
+  // 'staff/base/demandesins', 'staff/base/demandescre', 'staff/base/cartes',
+  // 'staff/base/aides') -> Angular ne trouvait pas de route correspondante et
+  // retombait sur l'écran par défaut (le tableau), d'où le souci.
+  // On utilise maintenant les vraies valeurs de Paths, + un flag `openForm=1`
+  // que chaque composant cible lit dans son ngOnInit() pour ouvrir directement
+  // le formulaire d'ajout au lieu du tableau (voir *.component.ts correspondants).
   goToDemande(type: 'installation' | 'credit' | 'carte' | 'aide', item: Personne): void {
-  this.closeDropdown();
-  const routes: Record<string, string> = {
-    installation: Paths.DEMANDESINS,
-    credit: Paths.DEMANDESCRE,
-    carte: Paths.CARTES,
-    aide: Paths.AIDES,
-  };
-  this.router.navigate([routes[type]], { queryParams: { personne_id: item.id } });
-}
+    this.closeDropdown();
+    const routes: Record<string, string> = {
+      installation: Paths.DEMANDESINS,
+      credit: Paths.DEMANDESCRE,
+      carte: Paths.CARTES,
+      aide: Paths.AIDES,
+    };
+    this.router.navigate([routes[type]], {
+      queryParams: { personne_id: item.id, openForm: '1' },
+    });
+  }
 
   ajouterSessionActive(item: Personne): void {
     this.closeDropdown();
@@ -551,20 +599,32 @@ export class DemandeursComponent extends AbstractCrudComponent<Personne> impleme
   }
 
   // --- Export Excel (inchangé) ---
-  exportExcel(): void {
+  private getTokenFromCookie(): string {
+    const match = document.cookie.match(/(?:^|;\s*)indicateurs_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+}
+
+// Clés de pagination/méta injectées dans this.filter par le composant parent —
+// à exclure de l'export, sinon l'URL devient invalide (ex: meta=[object Object]).
+private readonly EXPORT_EXCLUDED_KEYS = ['total', 'page', 'totalPages', 'per_page', 'limit', 'meta', 'count'];
+
+exportExcel(): void {
     if (this.exporting) return;
     this.exporting = true;
 
     const params = new URLSearchParams();
     Object.entries(this.filter).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') {
+      if (this.EXPORT_EXCLUDED_KEYS.includes(key)) return;
+      if (value !== null && value !== undefined && value !== '' && typeof value !== 'object') {
         params.set(key, String(value));
       }
     });
 
     const url = `${environment.URL_API}/personnes/export?${params.toString()}`;
+    const token = this.getTokenFromCookie();
+    const headers: { [header: string]: string } = token ? { Authorization: `Bearer ${token}` } : {};
 
-    this.apiHttp.get(url, { responseType: 'blob' }).subscribe({
+    this.apiHttp.get(url, { responseType: 'blob', headers }).subscribe({
       next: (blob: Blob) => {
         this.exporting = false;
         const link = document.createElement('a');
@@ -576,9 +636,7 @@ export class DemandeursComponent extends AbstractCrudComponent<Personne> impleme
       },
       error: (error: any) => {
         this.exporting = false;
-
         const errorBlob: Blob | undefined = error?.error instanceof Blob ? error.error : undefined;
-
         if (errorBlob) {
           const reader = new FileReader();
           reader.onload = () => {
@@ -586,15 +644,8 @@ export class DemandeursComponent extends AbstractCrudComponent<Personne> impleme
             try {
               const parsed = JSON.parse(reader.result as string);
               detail = parsed.message || detail;
-            } catch {
-              // La réponse n'était pas du JSON, on garde le message générique.
-            }
-            this.messageService.add({
-              severity: 'error',
-              summary: 'Erreur export',
-              detail,
-              life: 8000,
-            });
+            } catch {}
+            this.messageService.add({ severity: 'error', summary: 'Erreur export', detail, life: 8000 });
           };
           reader.readAsText(errorBlob);
         } else {
@@ -605,6 +656,4 @@ export class DemandeursComponent extends AbstractCrudComponent<Personne> impleme
           });
         }
       },
-    });
-  }
-}
+    });}}

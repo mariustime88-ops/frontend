@@ -9,38 +9,33 @@
   }
 }
 
-/* Style pour les inputs du modal */
-::ng-deep app-modal {
-  input.input-style {
-    display: flex;
-    align-items: center;
-    height: 42px;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-  }
-  
-  select.input-style {
-    display: block;
-    height: 42px;
-    padding: 8px 12px !important;
-    font-size: 14px;
-    line-height: 1.5;
-    color: #333;
-    background-color: #fff;
-    background-clip: padding-box;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    text-align: left;
-    text-align-last: left;
-    appearance: auto;
-    -webkit-appearance: auto;
-  }
-  
-  select.input-style option {
-    text-align: left;
-    padding: 8px 12px;
-  }
+/* Style pour les inputs du formulaire */
+.input-style {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 42px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.input-style:focus {
+  border-color: #023e7a;
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(2, 62, 122, 0.25);
+}
+
+.input-style:disabled {
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
 /* Style pour les selects de filtres */
@@ -58,8 +53,6 @@
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
   text-align: left !important;
   text-align-last: left !important;
-  appearance: auto !important;
-  -webkit-appearance: auto !important;
   min-width: 150px;
   cursor: pointer;
 }
@@ -68,11 +61,6 @@
   border-color: #023E7A;
   outline: 0;
   box-shadow: 0 0 0 0.2rem rgba(2, 62, 122, 0.25);
-}
-
-.select-filter option {
-  text-align: left;
-  padding: 8px 12px;
 }
 
 ::ng-deep .badge-pill {
@@ -99,4 +87,72 @@
 ::ng-deep .badge-pill-gray {
   background: #f1f5f9;
   color: #475569;
+}
+
+/* ===== Champs "combobox" avec recherche + liste déroulante cliquable =====
+   Utilisée à la fois dans la barre de filtres (Rôle, Niveau, Accès) et dans
+   le formulaire (Rôle, Niveau, GUPS, Département). */
+.search-combo-wrap {
+  position: relative;
+  min-width: 200px;
+
+  .select-filter,
+  .input-style {
+    width: 100%;
+    padding-right: 1.75rem;
+  }
+
+  .clear-icon {
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.7rem;
+    color: #9ca3af;
+    cursor: pointer;
+    z-index: 5;
+
+    &:hover {
+      color: #ef4444;
+    }
+  }
+
+  .search-dropdown {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 0.25rem 0;
+    margin: 0;
+    list-style: none;
+
+    li {
+      padding: 0.45rem 0.75rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: #374151;
+
+      &:hover {
+        background-color: #eff6ff;
+        color: #023e7a;
+      }
+
+      &.empty {
+        color: #9ca3af;
+        cursor: default;
+        font-style: italic;
+
+        &:hover {
+          background: none;
+        }
+      }
+    }
+  }
 }

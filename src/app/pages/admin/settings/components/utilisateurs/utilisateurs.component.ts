@@ -19,7 +19,52 @@ export interface User {
   password_confirmation?: string;
   deleted_at?: string | null;
   created_at?: string;
+  gups?: { id: number; libelle: string };
+  departement?: { id: number; libelle: string };
 }
+
+// ============================================================
+//  Champs "combobox" génériques (recherche + liste déroulante cliquable),
+//  utilisés à la fois dans la barre de filtres et dans le formulaire pour
+//  Rôle, Niveau, Accès, GUPS et Département — comme demandé, "les selects
+//  qui sont dans les formulaires... doivent être aussi comme les filtres".
+// ============================================================
+interface ComboState {
+  list: any[];
+  filtered: any[];
+  open: boolean;
+  label: string;
+  id: any;
+}
+
+function emptyCombo(): ComboState {
+  return { list: [], filtered: [], open: false, label: '', id: '' };
+}
+
+type ComboKey =
+  | 'filterRole'
+  | 'filterGrade'
+  | 'filterLecture'
+  | 'formRole'
+  | 'formGrade'
+  | 'formGups'
+  | 'formDepartement';
+
+const ROLE_OPTIONS = [
+  { id: 1, libelle: 'Administrateur' },
+  { id: 2, libelle: 'Agent' },
+    { id: 3, libelle: 'Gups' },
+
+];
+const GRADE_OPTIONS = [
+  { id: 1, libelle: 'GUPS' },
+  { id: 2, libelle: 'Départemental' },
+  { id: 3, libelle: 'National' },
+];
+const LECTURE_OPTIONS = [
+  { id: 0, libelle: 'Écriture' },
+  { id: 1, libelle: 'Lecture seule' },
+];
 
 @Component({
   selector: 'app-utilisateurs',
@@ -36,6 +81,9 @@ export class UtilisateursComponent extends AbstractCrudComponent<User> implement
 
   protected apiHttp = inject(HttpClient);
 
+  // Vue liste <-> formulaire plein écran (comme les autres modules)
+  showForm: boolean = false;
+
   gupsList: any[] = [];
   departementsList: any[] = [];
   accesTotal: boolean = true;
@@ -44,6 +92,17 @@ export class UtilisateursComponent extends AbstractCrudComponent<User> implement
 
   // Utilisateur actuellement ciblé par le modal Suspendre/Réactiver
   suspendTarget: User | null = null;
+
+  // Un seul dictionnaire pour tous les champs recherchables (filtres + formulaire)
+  combos: { [key in ComboKey]: ComboState } = {
+    filterRole: emptyCombo(),
+    filterGrade: emptyCombo(),
+    filterLecture: emptyCombo(),
+    formRole: emptyCombo(),
+    formGrade: emptyCombo(),
+    formGups: emptyCombo(),
+    formDepartement: emptyCombo(),
+  };
 
   sessionMenus = [
     { key: 'personne', label: 'Demandeurs' },
@@ -73,7 +132,7 @@ export class UtilisateursComponent extends AbstractCrudComponent<User> implement
     search: '',
     role: '',
     grade: '',
-    lecture_seule: ''
+    lecture_seule: '',
   };
 
   columns: Column[] = [
@@ -109,21 +168,40 @@ export class UtilisateursComponent extends AbstractCrudComponent<User> implement
     this.filter['trashed'] = 'with';
     super.ngOnInit();
     this.loadDropdownData();
+
+    this.combos.filterRole.list = ROLE_OPTIONS;
+    this.combos.filterRole.filtered = ROLE_OPTIONS;
+    this.combos.filterGrade.list = GRADE_OPTIONS;
+    this.combos.filterGrade.filtered = GRADE_OPTIONS;
+    this.combos.filterLecture.list = LECTURE_OPTIONS;
+    this.combos.filterLecture.filtered = LECTURE_OPTIONS;
+    this.combos.formRole.list = ROLE_OPTIONS;
+    this.combos.formRole.filtered = ROLE_OPTIONS;
+    this.combos.formGrade.list = GRADE_OPTIONS;
+    this.combos.formGrade.filtered = GRADE_OPTIONS;
   }
 
   loadDropdownData() {
     this.resourceService
       .loadResource<any>('gups', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.gupsList = res?.response?.data ?? []));
+      .subscribe((res: any) => {
+        this.gupsList = res?.response?.data ?? [];
+        this.combos.formGups.list = this.gupsList;
+        this.combos.formGups.filtered = this.gupsList;
+      });
 
     this.resourceService
       .loadResource<any>('departements', { paginate: true, params: { all: '1' } as any })
-      .subscribe((res: any) => (this.departementsList = res?.response?.data ?? []));
+      .subscribe((res: any) => {
+        this.departementsList = res?.response?.data ?? [];
+        this.combos.formDepartement.list = this.departementsList;
+        this.combos.formDepartement.filtered = this.departementsList;
+      });
   }
 
   protected override afterDataLoaded(items: User[]): void {
     items.forEach((item) => {
-      (item as any).role_label = item.role == 1 ? 'Administrateur' : 'Agent';
+      (item as any).role_label = item.role == 1 ? 'Administrateur' : 'Agent','Gups';
 
       if (item.grade == 1) (item as any).grade_label = 'GUPS';
       else if (item.grade == 2) (item as any).grade_label = 'Départemental';
@@ -132,28 +210,135 @@ export class UtilisateursComponent extends AbstractCrudComponent<User> implement
     });
   }
 
+  // ============================================================
+  //  Champs recherchables génériques (filtres & formulaire)
+  // ============================================================
+  onComboInput(key: ComboKey, term: string): void {
+    const state = this.combos[key];
+    const t = (term || '').toLowerCase().trim();
+    state.filtered = t ? state.list.filter((i) => (i.libelle || '').toLowerCase().includes(t)) : state.list;
+    state.open = true;
+  }
+
+  onComboFocus(key: ComboKey): void {
+    const state = this.combos[key];
+    state.filtered = state.list;
+    state.open = true;
+  }
+
+  onComboBlur(key: ComboKey): void {
+    const state = this.combos[key];
+    setTimeout(() => (state.open = false), 200);
+  }
+
+  private setOrDeleteFilter(key: string, value: any): void {
+    if (value === null || value === undefined || value === '') {
+      delete this.filter[key];
+    } else {
+      this.filter[key] = value;
+    }
+  }
+
+  selectComboOption(key: ComboKey, item: any): void {
+    const state = this.combos[key];
+    state.id = item.id;
+    state.label = item.libelle;
+    state.open = false;
+
+    switch (key) {
+      case 'filterRole':
+        this.searchFilters.role = item.id;
+        this.applyFilters();
+        break;
+      case 'filterGrade':
+        this.searchFilters.grade = item.id;
+        this.applyFilters();
+        break;
+      case 'filterLecture':
+        this.searchFilters.lecture_seule = item.id;
+        this.applyFilters();
+        break;
+      case 'formRole':
+        this.currentItem.role = item.id;
+        break;
+      case 'formGrade':
+        this.currentItem.grade = item.id;
+        // Le grade change les champs affichés (GUPS / Département) -> on nettoie l'autre.
+        this.currentItem.gups_id = null;
+        this.currentItem.departement_id = null;
+        this.combos.formGups.id = '';
+        this.combos.formGups.label = '';
+        this.combos.formDepartement.id = '';
+        this.combos.formDepartement.label = '';
+        break;
+      case 'formGups':
+        this.currentItem.gups_id = item.id;
+        break;
+      case 'formDepartement':
+        this.currentItem.departement_id = item.id;
+        break;
+    }
+  }
+
+  clearComboOption(key: ComboKey): void {
+    const state = this.combos[key];
+    state.id = '';
+    state.label = '';
+
+    switch (key) {
+      case 'filterRole':
+        this.searchFilters.role = '';
+        this.applyFilters();
+        break;
+      case 'filterGrade':
+        this.searchFilters.grade = '';
+        this.applyFilters();
+        break;
+      case 'filterLecture':
+        this.searchFilters.lecture_seule = '';
+        this.applyFilters();
+        break;
+      case 'formRole':
+        this.currentItem.role = '';
+        break;
+      case 'formGrade':
+        this.currentItem.grade = '';
+        break;
+      case 'formGups':
+        this.currentItem.gups_id = null;
+        break;
+      case 'formDepartement':
+        this.currentItem.departement_id = null;
+        break;
+    }
+  }
+
+  // ===================== Recherche texte (auto, sans bouton) =====================
+  private searchDebounce: any;
+
+  onTableSearch(term: string): void {
+    clearTimeout(this.searchDebounce);
+    this.searchDebounce = setTimeout(() => {
+      this.searchFilters.search = term;
+      this.setOrDeleteFilter('search', (term || '').trim());
+      this.filter['trashed'] = 'with';
+      this.data = [];
+      this.loadData();
+    }, 350);
+  }
+
   applyFilters() {
-    this.filter['search'] = this.searchFilters.search;
-    this.filter['role'] = this.searchFilters.role;
-    this.filter['grade'] = this.searchFilters.grade;
-    this.filter['lecture_seule'] = this.searchFilters.lecture_seule;
+    this.setOrDeleteFilter('search', this.searchFilters.search);
+    this.setOrDeleteFilter('role', this.searchFilters.role);
+    this.setOrDeleteFilter('grade', this.searchFilters.grade);
+    this.setOrDeleteFilter('lecture_seule', this.searchFilters.lecture_seule);
     this.filter['trashed'] = 'with';
     this.data = [];
     this.filtering = true;
     this.loadData();
   }
 
-  resetFilters() {
-    this.searchFilters = { search: '', role: '', grade: '', lecture_seule: '' };
-    this.filter['search'] = '';
-    this.filter['role'] = '';
-    this.filter['grade'] = '';
-    this.filter['lecture_seule'] = '';
-    this.filter['trashed'] = 'with';
-    this.data = [];
-    this.loadData();
-  }
-
+  // ===================== Vue liste / formulaire plein écran =====================
   override showAddForm(): void {
     super.showAddForm();
     this.currentItem = {
@@ -167,9 +352,14 @@ export class UtilisateursComponent extends AbstractCrudComponent<User> implement
       lecture_seule: 0,
       menus_autorises: null,
       password: '',
-      password_confirmation: ''
+      password_confirmation: '',
     };
     this.accesTotal = true;
+    this.combos.formRole = { list: ROLE_OPTIONS, filtered: ROLE_OPTIONS, open: false, label: '', id: '' };
+    this.combos.formGrade = { list: GRADE_OPTIONS, filtered: GRADE_OPTIONS, open: false, label: '', id: '' };
+    this.combos.formGups = { list: this.gupsList, filtered: this.gupsList, open: false, label: '', id: '' };
+    this.combos.formDepartement = { list: this.departementsList, filtered: this.departementsList, open: false, label: '', id: '' };
+    this.showForm = true;
   }
 
   override editItem(item: User): void {
@@ -185,8 +375,45 @@ export class UtilisateursComponent extends AbstractCrudComponent<User> implement
       this.currentItem.menus_autorises = item.menus_autorises;
     }
 
-    this.accesTotal = this.currentItem.menus_autorises === null ||
-                      (Array.isArray(this.currentItem.menus_autorises) && this.currentItem.menus_autorises.length === 0);
+    this.accesTotal =
+      this.currentItem.menus_autorises === null ||
+      (Array.isArray(this.currentItem.menus_autorises) && this.currentItem.menus_autorises.length === 0);
+
+    // Pré-remplissage des champs recherchables du formulaire
+    const roleOpt = ROLE_OPTIONS.find((r) => r.id == item.role);
+    this.combos.formRole = { list: ROLE_OPTIONS, filtered: ROLE_OPTIONS, open: false, id: item.role, label: roleOpt?.libelle || '' };
+
+    const gradeOpt = GRADE_OPTIONS.find((g) => g.id == item.grade);
+    this.combos.formGrade = { list: GRADE_OPTIONS, filtered: GRADE_OPTIONS, open: false, id: item.grade, label: gradeOpt?.libelle || '' };
+
+    this.combos.formGups = {
+      list: this.gupsList,
+      filtered: this.gupsList,
+      open: false,
+      id: item.gups_id || '',
+      label: item.gups?.libelle || '',
+    };
+    this.combos.formDepartement = {
+      list: this.departementsList,
+      filtered: this.departementsList,
+      open: false,
+      id: item.departement_id || '',
+      label: item.departement?.libelle || '',
+    };
+
+    this.showForm = true;
+  }
+
+  backToList(): void {
+    this.showForm = false;
+  }
+
+  protected override afterItemCreated(item: User): void {
+    this.showForm = false;
+  }
+
+  protected override afterItemUpdated(item: User): void {
+    this.showForm = false;
   }
 
   onAccesTotalChange(event: Event) {
@@ -250,9 +477,7 @@ export class UtilisateursComponent extends AbstractCrudComponent<User> implement
       }
     }
 
-    const token = localStorage.getItem('token') ||
-                  localStorage.getItem('access_token') ||
-                  sessionStorage.getItem('token');
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token') || sessionStorage.getItem('token');
 
     return token || null;
   }
@@ -297,13 +522,9 @@ export class UtilisateursComponent extends AbstractCrudComponent<User> implement
     });
 
     const baseUrl = environment.URL_API.replace(/\/$/, '');
-    const url = isSuspended
-      ? `${baseUrl}/users/${item.id}/restore`
-      : `${baseUrl}/users/${item.id}/suspend`;
+    const url = isSuspended ? `${baseUrl}/users/${item.id}/restore` : `${baseUrl}/users/${item.id}/suspend`;
 
-    const request$ = isSuspended
-      ? this.apiHttp.patch<any>(url, {}, { headers })
-      : this.apiHttp.put<any>(url, {}, { headers });
+    const request$ = isSuspended ? this.apiHttp.patch<any>(url, {}, { headers }) : this.apiHttp.put<any>(url, {}, { headers });
 
     request$.subscribe({
       next: () => {
