@@ -7,7 +7,9 @@
             ? ('Session active : ' + (activeSession?.libelle || '—'))
             : 'Base de données complète des étudiants handicapés' }}
       </h1>
+
                         <div class="flex gap-2">
+
 
       <button
         *ngIf="sessionScoped"
@@ -17,6 +19,7 @@
         <i class="fas fa-plus-circle"></i>
         Ajouter un étudiant
       </button>
+
        <button
             type="button"
             (click)="exportExcel()"
@@ -27,6 +30,7 @@
             <i class="fas fa-file-excel" *ngIf="!exporting"></i>
             Exporter
           </button>
+
     </div>
       </div>
 

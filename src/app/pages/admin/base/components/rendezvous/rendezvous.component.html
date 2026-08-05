@@ -7,7 +7,20 @@
             ? ('Session active : ' + (activeSession?.libelle || '—'))
             : 'Base de données complète des demandes de rendez-vous' }}
       </h1>
+
                         <div class="flex gap-2">
+
+      <button
+        *ngIf="sessionScoped"
+        type="button"
+        (click)="showAddForm()"
+        class="btn text-white bg-blue-700 hover:bg-white hover:text-blue-700 outline outline-1 outline-blue-700 transition-all duration-300"
+      >
+        <i class="fas fa-plus"></i>
+        Ajouter
+      </button>
+    </div>
+
 
       <button
         *ngIf="sessionScoped"
@@ -165,7 +178,6 @@
         ></app-custom-pagination>
       </div>
     </div>
-  </div>
 </app-admin-layout>
 
 <!-- Bouton "Voir détails" -->

@@ -177,6 +177,7 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
       if (params['openForm'] && params['personne_id']) {
         setTimeout(() => {
           this.showAddForm();
+ 
           const pid = Number(params['personne_id']);
           this.currentItem.personne_id = pid;
           // On récupère le demandeur pour afficher son nom + NPI dans le champ
@@ -189,6 +190,8 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
               }
             },
           });
+
+          this.currentItem.personne_id = Number(params['personne_id']);
         }, 300);
       }
     });
