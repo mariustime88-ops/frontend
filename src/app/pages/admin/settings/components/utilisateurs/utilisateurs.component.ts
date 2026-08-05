@@ -53,7 +53,6 @@ type ComboKey =
 const ROLE_OPTIONS = [
   { id: 1, libelle: 'Administrateur' },
   { id: 2, libelle: 'Agent' },
-    { id: 3, libelle: 'Gups' },
 
 ];
 const GRADE_OPTIONS = [
@@ -201,7 +200,7 @@ export class UtilisateursComponent extends AbstractCrudComponent<User> implement
 
   protected override afterDataLoaded(items: User[]): void {
     items.forEach((item) => {
-      (item as any).role_label = item.role == 1 ? 'Administrateur' : 'Agent','Gups';
+      (item as any).role_label = item.role == 1 ? 'Administrateur' : 'Agent';
 
       if (item.grade == 1) (item as any).grade_label = 'GUPS';
       else if (item.grade == 2) (item as any).grade_label = 'Départemental';

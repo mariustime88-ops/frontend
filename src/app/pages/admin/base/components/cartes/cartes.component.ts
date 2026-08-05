@@ -5,6 +5,7 @@ import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@app/environments/environment';
+import { Subscription } from 'rxjs';
 
 // ⚠️ La route réelle est "carte_egalites" (celle vue dans phpMyAdmin / utilisée
 // dès le départ). "demande_cartes" n'existe pas côté backend, d'où l'erreur
@@ -90,6 +91,7 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
   personneResults: any[] = [];
   personneSearchOpen: boolean = false;
   private personneSearchDebounce: any;
+  private personneSearchSub?: Subscription;
 
   selectedFiles: { [key: string]: File } = {};
 
@@ -177,7 +179,6 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
       if (params['openForm'] && params['personne_id']) {
         setTimeout(() => {
           this.showAddForm();
- 
           const pid = Number(params['personne_id']);
           this.currentItem.personne_id = pid;
           // On récupère le demandeur pour afficher son nom + NPI dans le champ
@@ -190,8 +191,6 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
               }
             },
           });
-
-          this.currentItem.personne_id = Number(params['personne_id']);
         }, 300);
       }
     });
@@ -393,15 +392,23 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
   // ===================== Demandeur (recherche par nom ou NPI) =====================
   onPersonneInput(term: string): void {
     clearTimeout(this.personneSearchDebounce);
+    // On annule la requête HTTP précédente si elle est encore en vol : sinon, en tapant
+    // vite un NPI/nom complet, chaque frappe envoie sa propre requête et elles s'empilent
+    // (la dernière — celle avec le texte complet — doit alors attendre que toutes les
+    // précédentes soient terminées, d'où les "plusieurs minutes" d'attente observées).
+    this.personneSearchSub?.unsubscribe();
+
     const t = (term || '').trim();
     this.currentItem.personne_id = null;
+
     if (!t) {
-      this.personneResults = [];
-      this.personneSearchOpen = false;
+      // Champ vidé : on republie directement la liste par défaut (pas d'attente).
+      this.loadDefaultPersonneList();
       return;
     }
+
     this.personneSearchDebounce = setTimeout(() => {
-      this.resourceService
+      this.personneSearchSub = this.resourceService
         .loadResource<any>('personnes', { paginate: true, params: { search: t, per_page: 10 } as any })
         .subscribe((res: any) => {
           this.personneResults = res?.response?.data ?? [];
@@ -411,7 +418,26 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
   }
 
   onPersonneFocus(): void {
-    if (this.personneResults.length) this.personneSearchOpen = true;
+    // Dès qu'on clique dans le champ (même vide), on affiche une liste de demandeurs
+    // pour ne pas obliger à taper avant de voir quoi que ce soit.
+    if (!this.personneResults.length) {
+      this.loadDefaultPersonneList();
+    } else {
+      this.personneSearchOpen = true;
+    }
+  }
+
+  private loadDefaultPersonneList(): void {
+    this.personneSearchSub?.unsubscribe();
+    // Pas de tri explicite ici : on suppose l'ordre par défaut du backend (souvent les
+    // plus récents en premier). Si ce n'est pas le cas, ajoute le paramètre de tri que
+    // ton API attend réellement (ex: sort=-created_at ou sort_by=created_at&sort_dir=desc).
+    this.personneSearchSub = this.resourceService
+      .loadResource<any>('personnes', { paginate: true, params: { per_page: 10 } as any })
+      .subscribe((res: any) => {
+        this.personneResults = res?.response?.data ?? [];
+        this.personneSearchOpen = true;
+      });
   }
 
   onPersonneBlur(): void {
@@ -419,12 +445,14 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
   }
 
   selectPersonne(item: any): void {
+    this.personneSearchSub?.unsubscribe();
     this.currentItem.personne_id = item.id;
     this.personneLabel = `${item.nomprenoms}${item.npi ? ' — NPI: ' + item.npi : ''}`;
     this.personneSearchOpen = false;
   }
 
   clearPersonne(): void {
+    this.personneSearchSub?.unsubscribe();
     this.currentItem.personne_id = null;
     this.personneLabel = '';
     this.personneResults = [];

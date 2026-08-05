@@ -85,7 +85,6 @@
         <select [(ngModel)]="searchFilters.statut_decision" (change)="onSimpleSelectChange()" class="select-filter">
           <option value="">Statut (Décision)</option>
           <option value="1">Validé</option>
-          <option value="2">Rejeté</option>
           <option value="0">Non traité</option>
         </select>
 
@@ -328,7 +327,6 @@
               <select [(ngModel)]="currentItem.statut" name="statut" class="input-style">
                 <option [ngValue]="0">Non traité</option>
                 <option [ngValue]="1">Validé</option>
-                <option [ngValue]="2">Rejeté</option>
               </select>
             </div>
           </div>
