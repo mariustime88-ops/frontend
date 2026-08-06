@@ -2,15 +2,16 @@
   <div class="p-4 max-w-2xl mx-auto">
     <h1 class="text-2xl font-bold text-gray-800 mb-6">Mon Profil</h1>
 
-    <!-- ✅ Bloc d'erreur ajouté ici -->
+    <!-- Bloc d'erreur -->
     <div *ngIf="isError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
       <p>{{ errorMessage }}</p>
-      <button class="btn bg-blue-600 text-white mt-2" (click)="logout()">Se reconnecter</button>
+      <button class="btn bg-blue-600 text-white mt-2" (click)="cancel()">Retour au tableau de bord</button>
     </div>
 
     <div class="card shadow-sm p-6">
       <form [formGroup]="profileForm" (ngSubmit)="onSubmit()">
 
+        <!-- Nom complet -->
         <div class="mb-4">
           <label for="name" class="block font-semibold text-gray-700 mb-1">
             Nom complet <span class="text-red-500">*</span>
@@ -21,6 +22,7 @@
           </small>
         </div>
 
+        <!-- Email (non modifiable) -->
         <div class="mb-4">
           <label for="email" class="block font-semibold text-gray-700 mb-1">
             Email <span class="text-red-500">*</span>
@@ -29,6 +31,7 @@
           <small class="text-gray-500">L'adresse email ne peut pas être modifiée.</small>
         </div>
 
+        <!-- Nouveau mot de passe -->
         <div class="mb-4">
           <label for="password" class="block font-semibold text-gray-700 mb-1">
             Nouveau mot de passe
@@ -37,6 +40,7 @@
           <small class="text-gray-500">Minimum 8 caractères.</small>
         </div>
 
+        <!-- Confirmation du mot de passe -->
         <div class="mb-6">
           <label for="password_confirmation" class="block font-semibold text-gray-700 mb-1">
             Confirmer le mot de passe
@@ -47,14 +51,23 @@
           </small>
         </div>
 
+        <!-- Boutons -->
         <div class="flex gap-4">
-          <button type="submit" class="btn bg-[var(--tw-main-blue)] text-white hover:bg-white hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[var(--tw-main-blue)] transition-all duration-300 px-6 py-2" [disabled]="isLoading">
+          <button
+            type="submit"
+            class="btn bg-[var(--tw-main-blue)] text-white hover:bg-white hover:text-[var(--tw-main-blue)] outline outline-1 hover:outline-[var(--tw-main-blue)] transition-all duration-300 px-6 py-2"
+            [disabled]="isLoading"
+          >
             <i class="fas fa-spinner fa-spin" *ngIf="isLoading"></i>
             <i class="fas fa-save" *ngIf="!isLoading"></i>
             {{ isLoading ? 'Enregistrement...' : 'Enregistrer' }}
           </button>
-          <button type="button" class="btn text-white bg-red-600 hover:bg-white hover:text-red-600 outline outline-1 hover:outline-red-600 transition-all duration-300 px-6 py-2" (click)="logout()">
-            <i class="fas fa-sign-out-alt mr-1"></i> Déconnexion
+          <button
+            type="button"
+            class="btn text-white bg-gray-600 hover:bg-white hover:text-gray-600 outline outline-1 hover:outline-gray-600 transition-all duration-300 px-6 py-2"
+            (click)="cancel()"
+          >
+            <i class="fas fa-times mr-1"></i> Annuler
           </button>
         </div>
       </form>

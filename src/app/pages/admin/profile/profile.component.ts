@@ -12,6 +12,7 @@ import { AdminLayoutComponent } from '@app/layouts/admin-layout/admin-layout.com
 import { GlobalConfig } from '@app/app.config';
 import { decrypt, encrypt } from '@app/cores/utils/cryptage';
 import { AdvancedResourceService } from '@app/cores/services/advanced-resource.service';
+import { Paths } from '@app/paths';
 
 @Component({
   selector: 'app-profile',
@@ -47,16 +48,12 @@ export class ProfileComponent implements OnInit {
     this.initForm();
   }
 
-  /**
-   * Charge l'utilisateur depuis le cookie
-   */
   private loadUserFromCookie(): void {
     const encrypted = this.cookieService.get(GlobalConfig.user);
     if (encrypted) {
       try {
         this.user = decrypt(encrypted);
         this.isError = false;
-        console.log('✅ Profil : utilisateur chargé');
       } catch (e) {
         this.isError = true;
         this.errorMessage = 'Erreur lors du décryptage des données. Veuillez vous reconnecter.';
@@ -65,13 +62,9 @@ export class ProfileComponent implements OnInit {
     } else {
       this.isError = true;
       this.errorMessage = 'Session introuvable. Veuillez vous reconnecter.';
-      console.warn('⚠️ Aucun cookie utilisateur trouvé');
     }
   }
 
-  /**
-   * Initialise le formulaire avec les données de l'utilisateur
-   */
   private initForm(): void {
     this.profileForm = this.fb.group({
       name: [this.user?.name || '', [Validators.required, Validators.minLength(2)]],
@@ -80,7 +73,6 @@ export class ProfileComponent implements OnInit {
       password_confirmation: ['', []],
     });
 
-    // Validation conditionnelle : si password est rempli, confirmation obligatoire
     this.profileForm.get('password')?.valueChanges.subscribe((value) => {
       const confirmControl = this.profileForm.get('password_confirmation');
       if (value) {
@@ -93,9 +85,6 @@ export class ProfileComponent implements OnInit {
     });
   }
 
-  /**
-   * Soumission du formulaire
-   */
   onSubmit(): void {
     if (this.profileForm.invalid) {
       this.messageService.add({
@@ -128,21 +117,24 @@ export class ProfileComponent implements OnInit {
 
     const userId = this.user.id;
 
-    // Appel API avec updateResourceItem (signature attendue)
     this.advancedService.updateResourceItem('users', { id: userId, ...payload }).subscribe({
       next: (response: any) => {
         this.isLoading = false;
+        // Mise à jour du cookie
+        if (response?.response) {
+          this.cookieService.set(GlobalConfig.user, encrypt(response.response));
+          this.user = response.response;
+        }
+        // Message de succès
         this.messageService.add({
           severity: 'success',
           summary: 'Profil mis à jour',
           detail: 'Vos informations ont été modifiées avec succès.',
         });
-        // Mise à jour du cookie
-        if (response?.response) {
-          this.cookieService.set(GlobalConfig.user, encrypt(response.response));
-          this.user = response.response;
-          this.profileForm.patchValue({ name: this.user.name });
-        }
+        // Redirection vers le tableau de bord après un court délai
+        setTimeout(() => {
+          this.router.navigate([Paths.DASHBOARD]);
+        }, 1500);
       },
       error: (err: any) => {
         this.isLoading = false;
@@ -158,11 +150,9 @@ export class ProfileComponent implements OnInit {
   }
 
   /**
-   * Déconnexion
+   * Annuler et revenir au tableau de bord
    */
-  logout(): void {
-    this.cookieService.delete(GlobalConfig.token);
-    this.cookieService.delete(GlobalConfig.user);
-    this.router.navigate(['/login']);
+  cancel(): void {
+    this.router.navigate([Paths.DASHBOARD]);
   }
 }
