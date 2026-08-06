@@ -40,4 +40,5 @@ RENDEZVOUS = 'staff/base/rendezvous',
 RENDEZVOUS_SESSION = 'staff/session-active/rendezvous',
 AIDES = 'staff/base/aides',
 AIDES_SESSION = 'staff/session-active/aides',
+  PROFILE = 'staff/profile',
 }

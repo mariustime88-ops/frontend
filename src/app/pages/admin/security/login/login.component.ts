@@ -15,6 +15,7 @@ import { Toast } from "primeng/toast";
 
 @Component({
   selector: "app-login",
+  standalone: true,
   imports: [
     FormsModule,
     ValidateDirective,
@@ -29,84 +30,59 @@ import { Toast } from "primeng/toast";
   providers: [MessageService],
 })
 export class LoginComponent {
-  loginData: { email: string; password: string; rememberMe: boolean } = {
-    email: "",
-    password: "",
-    rememberMe: false,
-  };
-  isLoading: boolean = false;
-  hidePassword: boolean = true;
+  loginData = { email: "", password: "", rememberMe: false };
+  isLoading = false;
+  hidePassword = true;
   paths = Paths;
 
   constructor(
     private router: Router,
     private cookieService: CookieService,
     private advancedService: AdvancedResourceService,
-    private messageService: MessageService,
+    private messageService: MessageService
   ) {}
 
   onSubmit() {
     this.isLoading = true;
-
-    this.advancedService
-      .updateCustom(ApiRoutes.LOGIN, this.loginData)
-      .subscribe({
-        next: (response: any) => {
-          this.isLoading = false;
-
-          // Vérification de la structure de réponse API V2
-          if (response.success) {
-            // Stockage du token et des informations utilisateur
-            sessionStorage.removeItem('level_chosen');
-            this.cookieService.set(GlobalConfig.token, response.response.token);
-            this.cookieService.set(
-              GlobalConfig.user,
-              encrypt(response.response.user),
-            );
-
-            const user = response.response.user;
-
-            this.messageService.add({
-              severity: "success",
-              summary: "Connexion réussie",
-              detail: response.message || "Vous êtes connecté avec succès !",
-            });
-
-            this.router.navigate([this.paths.DASHBOARD]);
-          } else {
-            this.messageService.add({
-              severity: "error",
-              summary: "Erreur de connexion",
-              detail: response.message || "Erreur de connexion",
-            });
-          }
-        },
-        error: (err) => {
-          this.isLoading = false;
-          this.handleApiError(err);
-        },
-      });
-  }
-
-  private handleApiError(err: any): void {
-    let errorMessage = "Une erreur est survenue !";
-
-    if (err.status === 401) {
-      errorMessage = "Identifiant ou mot de passe incorrect !";
-    } else if (err.error?.message) {
-      errorMessage = err.error.message;
-    } else if (err.error?.errors) {
-      // Gestion des erreurs de validation API V2
-      const firstError = Object.values(err.error.errors)[0];
-      errorMessage = Array.isArray(firstError)
-        ? firstError[0]
-        : String(firstError);
-    }
-
-    this.messageService.add({
-      severity: "error",
-      summary: "Erreur de connexion",
-      detail: errorMessage,
+    this.advancedService.updateCustom(ApiRoutes.LOGIN, this.loginData).subscribe({
+      next: (response: any) => {
+        this.isLoading = false;
+        if (response.success) {
+          // ✅ Correction ici : le token est à la racine
+          this.cookieService.set(GlobalConfig.token, response.token);
+          this.cookieService.set(GlobalConfig.user, encrypt(response.response));
+          this.messageService.add({
+            severity: "success",
+            summary: "Connexion réussie",
+            detail: response.message || "Vous êtes connecté avec succès !",
+          });
+          // Redirection vers le tableau de bord
+          this.router.navigate([this.paths.DASHBOARD]);
+        } else {
+          this.messageService.add({
+            severity: "error",
+            summary: "Erreur de connexion",
+            detail: response.message || "Identifiants incorrects.",
+          });
+        }
+      },
+      error: (err) => {
+        this.isLoading = false;
+        let msg = "Une erreur est survenue !";
+        if (err.status === 401) {
+          msg = "Identifiant ou mot de passe incorrect !";
+        } else if (err.error?.message) {
+          msg = err.error.message;
+        } else if (err.error?.errors) {
+          const first = Object.values(err.error.errors)[0];
+          msg = Array.isArray(first) ? first[0] : String(first);
+        }
+        this.messageService.add({
+          severity: "error",
+          summary: "Erreur de connexion",
+          detail: msg,
+        });
+      },
     });
   }
 }

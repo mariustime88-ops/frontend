@@ -25,4 +25,5 @@ export enum ApiRoutes {
   ETABLISSEMENTS = 'etablissements',
   RENDEZVOUS = 'rendezvous',
   AIDES = 'aides',
+  PROFILE = 'profile',
 }

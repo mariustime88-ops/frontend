@@ -5,15 +5,20 @@ import { CookieService } from 'ngx-cookie-service';
 import { GlobalConfig } from '@app/app.config';
 import { User } from '@app/cores/types/user';
 import { getDefaultUser } from '@app/cores/utils/get-user';
+import { RouterModule } from '@angular/router';
+import { Paths } from '@app/paths';
+
 
 @Component({
   selector: 'app-navbar',
-  imports: [CommonModule],
+  imports: [CommonModule,RouterModule],
+  standalone: true, // ou false si tu utilises un module
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.scss',
 })
 export class NavbarComponent implements OnInit {
   appName: string = "Gestion des indicateurs de Protection de l'Enfant | UNICEF - Bénin";
+   paths = Paths; // ← rend les chemins accessibles dans le template
 
   user: User = {} as User;
   levelDropdownOpen = false;

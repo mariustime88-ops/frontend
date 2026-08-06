@@ -28,7 +28,7 @@ import { AidesComponent } from './pages/admin/base/components/aides/aides.compon
 
 import { DossiernaisComponent } from './pages/admin/base/components/dossiernais/dossiernais.component';
 
-//import { CommunessComponent } from './pages/admin/statistiques/demandeurs/components/communess/communess.component';
+import { ProfileComponent } from './pages/admin/profile/profile.component';
 //import { DepartementssComponent } from './pages/admin/statistiques/demandeurs/components/communess/departementss.component';
 //import { SexesComponent } from './pages/admin/statisques/sexes/components/sexes/sexes.component';
 //import { DossiernaisComponent } from './pages/admin/base/components/dossiernais/dossiernais.component';
@@ -204,6 +204,11 @@ export const routes: Routes = [
   {
     path: Paths.DEMANDEURS,
     component: DemandeursComponent,
-  }
+  },
+   {
+    path: 'staff/profile',
+    component: ProfileComponent,
+  },
+
 
 ];
