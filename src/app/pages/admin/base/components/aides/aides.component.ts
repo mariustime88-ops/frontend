@@ -6,23 +6,14 @@ import { Column } from '@app/shared/components/forms/data-table/data-table.compo
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@app/environments/environment';
 
-// ⚠️ Interface calquée sur la table `aide_techniques` vue dans phpMyAdmin
-// (id, materiel, personne_id, departement_id, commune_id, gups_id, user_id, ...).
-// Le Demandeur / Date de Naissance / Sexe / NPI viennent de la relation `personne`
-// (comme pour demande_credits) et sont en lecture seule dans le formulaire.
-// La ligne "Ajouté par : Gups Malanville" (capture "Détails") vient probablement de
-// la relation `user` -> `gups`. Je suppose `user.gups.libelle`, à ajuster si le
-// vrai chemin diffère chez toi (ex: `user.name` tout court).
 export interface AideTechnique {
   id: number;
   materiel?: string | null;
-
   personne_id?: number | null;
   departement_id?: number | null;
   commune_id?: number | null;
   gups_id?: number | null;
   user_id?: number | null;
-
   personne?: {
     id: number;
     nomprenoms?: string;
@@ -35,12 +26,10 @@ export interface AideTechnique {
   commune?: { id: number; libelle: string };
   gups?: { id: number; libelle: string };
   user?: { id: number; name?: string; gups?: { id: number; libelle: string } };
-
   created_at?: string;
   updated_at?: string;
 }
 
-// Cascade géographique : Département -> Commune -> GUPS
 type GeoLevel = 'departement' | 'commune' | 'gups';
 
 interface GeoState {
@@ -96,16 +85,10 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
   viewTarget: AideTechnique | null = null;
   exporting: boolean = false;
 
-  // ===================== Session active (route data) =====================
-  // true quand on arrive via le menu "Session active" (même composant, route
-  // différente, voir app.routes.ts -> data: { sessionScoped: true }).
   sessionScoped: boolean = false;
-  // Session dont is_actif = 1, trouvée dans sessionsList une fois chargée.
   activeSession: any = null;
 
-  // Cascade géo : filtres (Département -> Commune uniquement, comme sur la liste)
   filterGeo = emptyGeo();
-  // Cascade géo : formulaire (Département -> Commune -> GUPS)
   formGeo = emptyGeo();
 
   sessionsList: any[] = [];
@@ -113,6 +96,12 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
   simpleOpen: { [key in SimpleKey]: boolean } = { sessions: false };
 
   years: number[] = [];
+
+  // ===================== Gestion des personnes =====================
+  personnesList: any[] = [];
+  personnesFiltered: any[] = [];
+  personnesOpen: boolean = false;
+  personnesSearch: string = '';
 
   searchFilters = {
     search: '',
@@ -145,9 +134,6 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
   override ngOnInit(): void {
     super.ngOnInit();
     this.buildYearsRange();
-
-    // Lu depuis app.routes.ts : { path: Paths.AIDES_SESSION, component: AidesComponent,
-    // data: { sessionScoped: true } }. Même composant, juste ce flag qui change de route.
     this.sessionScoped = !!this.activatedRoute.snapshot.data['sessionScoped'];
 
     this.resourceService
@@ -163,42 +149,33 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
       .subscribe((res: any) => {
         this.sessionsList = res?.response?.data ?? [];
         this.simpleFiltered.sessions = this.sessionsList;
-
-        // Vue "Session active" : on verrouille filtres + tableau sur la session en cours.
         if (this.sessionScoped) {
           this.lockToActiveSession();
         }
       });
 
-    // Arrivée depuis le menu "Faire une demande" de demandeurs.component.ts
-    // (?personne_id=X&openForm=1) : on ouvre directement le formulaire d'ajout,
-    // pré-rempli avec le demandeur, au lieu d'atterrir sur le tableau.
+    // Arrivée depuis "Faire une demande" avec personne_id
     this.activatedRoute.queryParams.subscribe((params) => {
       if (params['openForm'] && params['personne_id']) {
         setTimeout(() => {
           this.showAddForm();
           this.currentItem.personne_id = Number(params['personne_id']);
+          const p = this.personnesList.find(x => x.id === Number(params['personne_id']));
+          if (p) this.personnesSearch = p.nomprenoms;
         }, 300);
       }
     });
   }
 
-  // ============================================================
-  //  SESSION ACTIVE
-  //  Cherche dans sessionsList la session avec is_actif = 1 (colonne de `diss_sessions`)
-  //  et verrouille dessus les filtres + le tableau. S'il n'y a aucune session en cours,
-  //  on vide simplement la liste (rien à afficher, rien à ajouter).
-  // ============================================================
   private lockToActiveSession(): void {
     this.activeSession = this.sessionsList.find((s: any) => s.is_actif == 1) || null;
-
     if (!this.activeSession) {
       this.data = [];
       return;
     }
-
     this.searchFilters.session_id = this.activeSession.id;
     this.searchFilters.session_label = this.activeSession.libelle;
+    this.filter['includes'] = 'personne,departement,commune,gups';
     this.setOrDeleteFilter('session_id', this.activeSession.id);
     this.loadData();
   }
@@ -210,9 +187,7 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
     this.years = list;
   }
 
-  // ============================================================
-  //  CASCADE GÉOGRAPHIQUE GÉNÉRIQUE (utilisée par filtres & formulaire)
-  // ============================================================
+  // ===================== Géo =====================
   private geoStateOf(target: 'filterGeo' | 'formGeo'): { [key in GeoLevel]: GeoState } {
     return target === 'filterGeo' ? this.filterGeo : this.formGeo;
   }
@@ -247,12 +222,10 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
     geo[level].id = item.id;
     geo[level].label = item.libelle;
     geo[level].open = false;
-
     const idx = GEO_ORDER.indexOf(level);
     for (let i = idx + 1; i < GEO_ORDER.length; i++) {
       geo[GEO_ORDER[i]] = emptyGeoState();
     }
-
     this.loadNextGeoLevel(target, level, item.id);
     this.syncGeoToModel(target);
     if (target === 'filterGeo') this.applyFilters();
@@ -273,7 +246,6 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
     const parentParam = GEO_PARENT_PARAM[level];
     const nextLevel = GEO_ORDER[GEO_ORDER.indexOf(level) + 1];
     if (!nextResource || !parentParam || !nextLevel) return;
-
     this.resourceService
       .loadResource<any>(nextResource, { paginate: true, params: { all: '1', [parentParam]: parentId } as any })
       .subscribe((res: any) => {
@@ -306,12 +278,10 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
 
   private initFormGeoFromItem(item: AideTechnique): void {
     this.formGeo = emptyGeo();
-
     if (this.filterGeo.departement.list.length) {
       this.formGeo.departement.list = this.filterGeo.departement.list;
       this.formGeo.departement.filtered = this.filterGeo.departement.list;
     }
-
     if (item.departement_id) {
       this.formGeo.departement.id = item.departement_id;
       this.formGeo.departement.label = item.departement?.libelle || '';
@@ -340,7 +310,7 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
     }
   }
 
-  // ===================== Sessions (filtre simple) =====================
+  // ===================== Sessions =====================
   onSessionInput(term: string): void {
     const t = (term || '').toLowerCase().trim();
     this.simpleFiltered.sessions = t
@@ -383,7 +353,6 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
   }
 
   private searchDebounce: any;
-
   onTableSearch(term: string): void {
     clearTimeout(this.searchDebounce);
     this.searchDebounce = setTimeout(() => {
@@ -393,9 +362,65 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
     }, 350);
   }
 
-  // ===================== Demandeur (relation personne) =====================
-  // Mêmes helpers "tolérants" que pour demande_credits : le vrai champ chez toi est
-  // `nomprenoms` (un seul mot) et `npi` directement sur la personne.
+  // ===================== Demandeur (personne) =====================
+  loadPersonnes() {
+    this.resourceService.loadResource<any>('personnes', { params: { all: '1' } })
+      .subscribe((res: any) => {
+        let data: any[] = [];
+        if (Array.isArray(res)) {
+          data = res;
+        } else if (res && typeof res === 'object' && 'response' in res) {
+          data = res.response?.data ?? [];
+        } else if (res?.data) {
+          data = res.data;
+        } else {
+          data = res || [];
+        }
+        this.personnesList = data.map((p: any) => ({
+          id: p.id,
+          nomprenoms: p.nomprenoms,
+          npi: p.npi,
+          contact: p.contact
+        }));
+        this.personnesFiltered = this.personnesList;
+      });
+  }
+
+  onPersonneInput(value: string) {
+    this.personnesSearch = value;
+    const term = value.toLowerCase().trim();
+    if (term) {
+      this.personnesFiltered = this.personnesList.filter(p =>
+        p.nomprenoms.toLowerCase().includes(term) ||
+        (p.npi && p.npi.includes(term))
+      );
+    } else {
+      this.personnesFiltered = this.personnesList;
+    }
+    this.personnesOpen = true;
+  }
+
+  onPersonneFocus() {
+    this.personnesFiltered = this.personnesList;
+    this.personnesOpen = true;
+  }
+
+  onPersonneBlur() {
+    setTimeout(() => (this.personnesOpen = false), 200);
+  }
+
+  selectPersonne(p: any) {
+    this.currentItem.personne_id = p.id;
+    this.personnesSearch = p.nomprenoms + (p.npi ? ' (NPI: ' + p.npi + ')' : '');
+    this.personnesOpen = false;
+  }
+
+  clearPersonne() {
+    this.currentItem.personne_id = null;
+    this.personnesSearch = '';
+    this.personnesFiltered = this.personnesList;
+  }
+
   getDemandeurNom(row: any): string {
     const p = row?.personne || {};
     if (p.nomprenoms) return p.nomprenoms;
@@ -411,14 +436,12 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
     return p.npi || p.numero_npi || row?.npi || '-';
   }
 
-  // "Ajouté par" affiché dans la modale Détails (capture 3) — je suppose que
-  // l'ajout vient d'un GUPS via user.gups.libelle ; ajuste si le champ diffère.
   getAjoutePar(item: AideTechnique | null): string {
     if (!item) return '-';
     return item.user?.gups?.libelle || item.user?.name || '-';
   }
 
-  // ===================== Vue liste / formulaire plein écran =====================
+  // ===================== Formulaire =====================
   override showAddForm(): void {
     super.showAddForm();
     this.formGeo = emptyGeo();
@@ -434,12 +457,21 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
       gups_id: null,
       personne_id: null,
     };
+    this.personnesSearch = '';
+    this.personnesFiltered = [];
+    this.personnesOpen = false;
     this.showForm = true;
+    this.loadPersonnes();
   }
 
   override editItem(item: AideTechnique): void {
     super.editItem(item);
     this.initFormGeoFromItem(item);
+    if (item.personne_id && item.personne) {
+      this.personnesSearch = item.personne.nomprenoms || '';
+    } else {
+      this.personnesSearch = '';
+    }
     this.showForm = true;
   }
 
@@ -459,7 +491,6 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
     this.viewTarget = item;
   }
 
-  // ===================== Dates =====================
   formatDisplayDate(value: string | null | undefined): string {
     if (!value) return '-';
     const datePart = value.substring(0, 10);
@@ -474,22 +505,22 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
   }
 
   // ===================== Enregistrement =====================
-  // Pas de fichier à uploader pour ce module (la table `aide_techniques` n'a pas de
-  // colonne fichier), donc un simple objet JSON suffit — pas besoin de FormData.
   override onSubmit(): void {
-    if (this.currentItem && this.currentItem.id) {
-      this.processing = true;
-      const payload = {
-        materiel: this.currentItem.materiel,
-        departement_id: this.currentItem.departement_id,
-        commune_id: this.currentItem.commune_id,
-        gups_id: this.currentItem.gups_id,
-      };
+    // Construction du payload incluant personne_id
+    const payload = {
+      materiel: this.currentItem.materiel,
+      departement_id: this.currentItem.departement_id,
+      commune_id: this.currentItem.commune_id,
+      gups_id: this.currentItem.gups_id,
+      personne_id: this.currentItem.personne_id,
+    };
 
+    if (this.currentItem && this.currentItem.id) {
+      // Mise à jour
+      this.processing = true;
       const url = `${environment.URL_API}/aide_techniques/${this.currentItem.id}`;
       const token = this.getTokenFromCookie();
       const headers: { [header: string]: string } = token ? { Authorization: `Bearer ${token}` } : {};
-
       this.apiHttp.put(url, payload, { headers }).subscribe({
         next: () => {
           this.processing = false;
@@ -503,24 +534,35 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
         },
       });
     } else {
-      super.onSubmit();
+      // Création : on utilise la méthode parente (POST) avec le payload
+      this.processing = true;
+      const token = this.getTokenFromCookie();
+      const headers: { [header: string]: string } = token ? { Authorization: `Bearer ${token}` } : {};
+      this.apiHttp.post(`${environment.URL_API}/aide_techniques`, payload, { headers }).subscribe({
+        next: () => {
+          this.processing = false;
+          this.messageService.add({ severity: 'success', summary: 'Succès', detail: 'Demande ajoutée avec succès.' });
+          this.showForm = false;
+          this.loadData();
+        },
+        error: (err) => {
+          this.processing = false;
+          this.messageService.add({ severity: 'error', summary: 'Erreur', detail: err?.error?.message || "Erreur lors de l'ajout." });
+        },
+      });
     }
   }
 
-  // ===================== Export =====================
   exportExcel(): void {
     if (this.exporting) return;
     this.exporting = true;
-
     const params = new URLSearchParams();
     Object.entries(this.filter).forEach(([key, value]) => {
       if (value !== null && value !== undefined && value !== '') params.set(key, String(value));
     });
-
     const url = `${environment.URL_API}/aide_techniques/export?${params.toString()}`;
     const token = this.getTokenFromCookie();
     const headers: { [header: string]: string } = token ? { Authorization: `Bearer ${token}` } : {};
-
     this.apiHttp.get(url, { responseType: 'blob' as const, headers }).subscribe({
       next: (blob: Blob) => {
         this.exporting = false;

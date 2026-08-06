@@ -6,19 +6,6 @@ import { Column } from '@app/shared/components/forms/data-table/data-table.compo
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@app/environments/environment';
 
-// ⚠️ Interface calquée sur la table `demande_credits` vue dans phpMyAdmin
-// (id, domaine_activite, objectif, montant, denomination, projet, plan_affaire,
-// statut, personne_id, departement_id, commune_id, gups_id, user_id, ...).
-// Les infos du demandeur (Nom et Prénoms, Date de Naissance, Sexe, Contact, NPI)
-// viennent de la relation `personne` (personne_id) et sont en lecture seule ici.
-// ⚠️ Le formulaire (capture fournie) affiche aussi "Identifiant Fiscal", "Relevé
-// Bancaire", "Carte d'Égalité ou Récépissé de dépôt" et "Carte Nationale", qui
-// n'apparaissaient PAS dans la structure de table que tu m'as montrée (seules
-// `projet` et `plan_affaire` existent comme colonnes fichier). Je les ai quand même
-// ajoutés au formulaire avec des noms de champs "logiques" (identifiant_fiscal,
-// releve_bancaire, carte_egalite, carte_nationale) — si ton backend stocke ces
-// fichiers autrement (ex: table `documents` polymorphe, que j'ai vue dans ta liste
-// de tables phpMyAdmin), dis-le-moi et j'adapte `buildFormData()` en conséquence.
 export interface DemandeCredit {
   id: number;
   domaine_activite?: string | null;
@@ -32,16 +19,14 @@ export interface DemandeCredit {
   carte_egalite?: any;
   carte_nationale?: any;
   statut?: string | null;
-
   personne_id?: number | null;
   departement_id?: number | null;
   commune_id?: number | null;
   gups_id?: number | null;
   user_id?: number | null;
-
   personne?: {
     id: number;
-    nom_prenoms?: string;
+    nomprenoms?: string;
     sexe?: string;
     contact?: string;
     npi?: string;
@@ -50,13 +35,10 @@ export interface DemandeCredit {
   departement?: { id: number; libelle: string };
   commune?: { id: number; libelle: string };
   gups?: { id: number; libelle: string };
-
   created_at?: string;
   updated_at?: string;
 }
 
-// Cascade géographique : Département -> Commune -> GUPS
-// (utilisée avec 2 niveaux dans les filtres, 3 niveaux dans le formulaire)
 type GeoLevel = 'departement' | 'commune' | 'gups';
 
 interface GeoState {
@@ -108,23 +90,16 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
   protected apiHttp = inject(HttpClient);
   protected activatedRoute = inject(ActivatedRoute);
 
-  // ===================== Session active (route data) =====================
-  // true quand on arrive via le menu "Session active" (même composant, route
-  // différente, voir app.routes.ts -> data: { sessionScoped: true }).
   sessionScoped: boolean = false;
-  // Session dont is_actif = 1, trouvée dans sessionsList une fois chargée.
   activeSession: any = null;
 
-  // Vue liste <-> formulaire plein écran
   showForm: boolean = false;
   viewTarget: DemandeCredit | null = null;
   exporting: boolean = false;
 
   selectedFiles: { [key: string]: File } = {};
 
-  // Cascade géo : filtres (Département -> Commune uniquement, comme sur la liste)
   filterGeo = emptyGeo();
-  // Cascade géo : formulaire (Département -> Commune -> GUPS)
   formGeo = emptyGeo();
 
   sessionsList: any[] = [];
@@ -140,6 +115,12 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
     statut: '',
     annee: '',
   };
+
+  // ⭐⭐⭐ Personnes pour le formulaire ⭐⭐⭐
+  personnesList: any[] = [];
+  personnesFiltered: any[] = [];
+  personnesOpen: boolean = false;
+  personnesSearch: string = '';
 
   columns: Column[] = [
     {
@@ -169,10 +150,6 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
 
   globalFilterFields = ['personne.nomprenoms', 'personne.contact', 'personne.npi'];
 
-  // ⚠️ "Sexe" et "Contact" s'affichaient déjà correctement, donc la relation `personne`
-  // est bien chargée par l'API — seuls les noms exacts de ces 2 champs ne correspondent
-  // pas. Ces 2 méthodes essaient plusieurs noms de champs courants pour les deviner ;
-  // dis-moi le vrai nom de champ retourné par ton API et je simplifie ça directement.
   getDemandeurNom(row: any): string {
     const p = row?.personne || {};
     if (p.nomprenoms) return p.nomprenoms;
@@ -192,9 +169,6 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
   override ngOnInit(): void {
     super.ngOnInit();
     this.buildYearsRange();
-
-    // Lu depuis app.routes.ts : { path: Paths.DEMANDES_CREDIT_SESSION, component: DemandescreComponent,
-    // data: { sessionScoped: true } }. Même composant, juste ce flag qui change de route.
     this.sessionScoped = !!this.activatedRoute.snapshot.data['sessionScoped'];
 
     this.resourceService
@@ -210,42 +184,32 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
       .subscribe((res: any) => {
         this.sessionsList = res?.response?.data ?? [];
         this.simpleFiltered.sessions = this.sessionsList;
-
-        // Vue "Session active" : on verrouille filtres + tableau sur la session en cours.
         if (this.sessionScoped) {
           this.lockToActiveSession();
         }
       });
 
-    // Arrivée depuis le menu "Faire une demande" de demandeurs.component.ts
-    // (?personne_id=X&openForm=1) : on ouvre directement le formulaire d'ajout,
-    // pré-rempli avec le demandeur, au lieu d'atterrir sur le tableau.
     this.activatedRoute.queryParams.subscribe((params) => {
       if (params['openForm'] && params['personne_id']) {
         setTimeout(() => {
           this.showAddForm();
           this.currentItem.personne_id = Number(params['personne_id']);
+          const p = this.personnesList.find(x => x.id === Number(params['personne_id']));
+          if (p) this.personnesSearch = p.nomprenoms;
         }, 300);
       }
     });
   }
 
-  // ============================================================
-  //  SESSION ACTIVE
-  //  Cherche dans sessionsList la session avec is_actif = 1 (colonne de `diss_sessions`)
-  //  et verrouille dessus les filtres + le tableau. S'il n'y a aucune session en cours,
-  //  on vide simplement la liste (rien à afficher, rien à ajouter).
-  // ============================================================
   private lockToActiveSession(): void {
     this.activeSession = this.sessionsList.find((s: any) => s.is_actif == 1) || null;
-
     if (!this.activeSession) {
       this.data = [];
       return;
     }
-
     this.searchFilters.session_id = this.activeSession.id;
     this.searchFilters.session_label = this.activeSession.libelle;
+    this.filter['includes'] = 'personne,departement,commune,gups';
     this.setOrDeleteFilter('session_id', this.activeSession.id);
     this.loadData();
   }
@@ -257,9 +221,7 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
     this.years = list;
   }
 
-  // ============================================================
-  //  CASCADE GÉOGRAPHIQUE GÉNÉRIQUE (utilisée par filtres & formulaire)
-  // ============================================================
+  // ===================== Géo =====================
   private geoStateOf(target: 'filterGeo' | 'formGeo'): { [key in GeoLevel]: GeoState } {
     return target === 'filterGeo' ? this.filterGeo : this.formGeo;
   }
@@ -280,7 +242,7 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
   onGeoBlur(target: 'filterGeo' | 'formGeo', level: GeoLevel): void {
     const state = this.geoStateOf(target)[level];
     setTimeout(() => (state.open = false), 200);
-  }
+}
 
   isGeoDisabled(target: 'filterGeo' | 'formGeo', level: GeoLevel): boolean {
     const idx = GEO_ORDER.indexOf(level);
@@ -294,12 +256,10 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
     geo[level].id = item.id;
     geo[level].label = item.libelle;
     geo[level].open = false;
-
     const idx = GEO_ORDER.indexOf(level);
     for (let i = idx + 1; i < GEO_ORDER.length; i++) {
       geo[GEO_ORDER[i]] = emptyGeoState();
     }
-
     this.loadNextGeoLevel(target, level, item.id);
     this.syncGeoToModel(target);
     if (target === 'filterGeo') this.applyFilters();
@@ -320,7 +280,6 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
     const parentParam = GEO_PARENT_PARAM[level];
     const nextLevel = GEO_ORDER[GEO_ORDER.indexOf(level) + 1];
     if (!nextResource || !parentParam || !nextLevel) return;
-
     this.resourceService
       .loadResource<any>(nextResource, { paginate: true, params: { all: '1', [parentParam]: parentId } as any })
       .subscribe((res: any) => {
@@ -353,12 +312,10 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
 
   private initFormGeoFromItem(item: DemandeCredit): void {
     this.formGeo = emptyGeo();
-
     if (this.filterGeo.departement.list.length) {
       this.formGeo.departement.list = this.filterGeo.departement.list;
       this.formGeo.departement.filtered = this.filterGeo.departement.list;
     }
-
     if (item.departement_id) {
       this.formGeo.departement.id = item.departement_id;
       this.formGeo.departement.label = item.departement?.libelle || '';
@@ -387,7 +344,7 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
     }
   }
 
-  // ===================== Sessions (filtre simple) =====================
+  // ===================== Sessions =====================
   onSessionInput(term: string): void {
     const t = (term || '').toLowerCase().trim();
     this.simpleFiltered.sessions = t
@@ -431,7 +388,6 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
   }
 
   private searchDebounce: any;
-
   onTableSearch(term: string): void {
     clearTimeout(this.searchDebounce);
     this.searchDebounce = setTimeout(() => {
@@ -441,7 +397,6 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
     }, 350);
   }
 
-  // ===================== Badges =====================
   private statutBadge(statut: any): string {
     const s = (statut || '').toString().toLowerCase();
     if (s.includes('attente')) return '<span class="badge-pill badge-pill-orange">En attente</span>';
@@ -450,7 +405,66 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
     return `<span class="badge-pill badge-pill-gray">${statut || '-'}</span>`;
   }
 
-  // ===================== Vue liste / formulaire plein écran =====================
+  // ===================== Gestion des personnes =====================
+ loadPersonnes() {
+    this.resourceService.loadResource<any>('personnes', { params: { all: '1' } })
+        .subscribe((res: any) => {
+            let data: any[] = [];
+            if (Array.isArray(res)) {
+                data = res;
+            } else if (res && typeof res === 'object' && 'response' in res) {
+                data = res.response?.data ?? [];
+            } else if (res && res.data) {
+                data = res.data;
+            } else {
+                data = res || [];
+            }
+            this.personnesList = data.map((p: any) => ({
+                id: p.id,
+                nomprenoms: p.nomprenoms,
+                npi: p.npi,
+                contact: p.contact
+            }));
+            this.personnesFiltered = this.personnesList;
+        });
+}
+
+  onPersonneInput(value: string) {
+    this.personnesSearch = value;
+    const term = value.toLowerCase().trim();
+    if (term) {
+      this.personnesFiltered = this.personnesList.filter(p =>
+        p.nomprenoms.toLowerCase().includes(term) ||
+        (p.npi && p.npi.includes(term))
+      );
+    } else {
+      this.personnesFiltered = this.personnesList;
+    }
+    this.personnesOpen = true;
+  }
+
+  onPersonneFocus() {
+    this.personnesFiltered = this.personnesList;
+    this.personnesOpen = true;
+  }
+
+  onPersonneBlur() {
+    setTimeout(() => (this.personnesOpen = false), 200);
+  }
+
+  selectPersonne(p: any) {
+    this.currentItem.personne_id = p.id;
+    this.personnesSearch = p.nomprenoms + (p.npi ? ' (NPI: ' + p.npi + ')' : '');
+    this.personnesOpen = false;
+  }
+
+  clearPersonne() {
+    this.currentItem.personne_id = null;
+    this.personnesSearch = '';
+    this.personnesFiltered = this.personnesList;
+  }
+
+  // ===================== Formulaire =====================
   override showAddForm(): void {
     super.showAddForm();
     this.selectedFiles = {};
@@ -471,13 +485,22 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
       gups_id: null,
       personne_id: null,
     };
+    this.personnesSearch = '';
+    this.personnesFiltered = this.personnesList;
+    this.personnesOpen = false;
     this.showForm = true;
+    this.loadPersonnes();
   }
 
   override editItem(item: DemandeCredit): void {
     super.editItem(item);
     this.selectedFiles = {};
     this.initFormGeoFromItem(item);
+    if (item.personne_id && item.personne) {
+      this.personnesSearch = item.personne.nomprenoms || '';
+    } else {
+      this.personnesSearch = '';
+    }
     this.showForm = true;
   }
 
@@ -514,7 +537,6 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
     return `${base}/storage/${path}`;
   }
 
-  // ===================== Dates =====================
   formatDisplayDate(value: string | null | undefined): string {
     if (!value) return '-';
     const datePart = value.substring(0, 10);
@@ -528,35 +550,27 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
     return match ? decodeURIComponent(match[1]) : '';
   }
 
-  // ===================== Enregistrement =====================
   private buildFormData(): FormData {
     const formData = new FormData();
-
-    const simpleFields = ['domaine_activite', 'objectif', 'montant', 'denomination', 'departement_id', 'commune_id', 'gups_id'];
+    const simpleFields = ['domaine_activite', 'objectif', 'montant', 'denomination', 'departement_id', 'commune_id', 'gups_id', 'personne_id'];
     simpleFields.forEach((key) => {
       const val = (this.currentItem as any)[key];
       if (val !== null && val !== undefined) formData.append(key, val);
     });
-
     ['projet', 'plan_affaire', 'identifiant_fiscal', 'releve_bancaire', 'carte_egalite', 'carte_nationale'].forEach((field) => {
       if (this.selectedFiles[field]) formData.append(field, this.selectedFiles[field]);
     });
-
     return formData;
   }
 
-  // Même principe que pour dossier_triples : PUT-spoofing (formulaire multipart) +
-  // token lu dans le cookie `indicateurs_token`.
   override onSubmit(): void {
     if (this.currentItem && this.currentItem.id) {
       this.processing = true;
       const formData = this.buildFormData();
       formData.append('_method', 'PUT');
-
       const url = `${environment.URL_API}/demande_credits/${this.currentItem.id}`;
       const token = this.getTokenFromCookie();
       const headers: { [header: string]: string } = token ? { Authorization: `Bearer ${token}` } : {};
-
       this.apiHttp.post(url, formData, { headers }).subscribe({
         next: () => {
           this.processing = false;
@@ -574,20 +588,16 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
     }
   }
 
-  // ===================== Export =====================
   exportExcel(): void {
     if (this.exporting) return;
     this.exporting = true;
-
     const params = new URLSearchParams();
     Object.entries(this.filter).forEach(([key, value]) => {
       if (value !== null && value !== undefined && value !== '') params.set(key, String(value));
     });
-
     const url = `${environment.URL_API}/demande_credits/export?${params.toString()}`;
     const token = this.getTokenFromCookie();
     const headers: { [header: string]: string } = token ? { Authorization: `Bearer ${token}` } : {};
-
     this.apiHttp.get(url, { responseType: 'blob' as const, headers }).subscribe({
       next: (blob: Blob) => {
         this.exporting = false;

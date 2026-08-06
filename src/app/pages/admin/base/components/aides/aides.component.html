@@ -7,41 +7,35 @@
             ? ('Session active : ' + (activeSession?.libelle || '—'))
             : "Base de données complète des demandes d'aide technique de mobilité" }}
       </h1>
-            <div class="flex gap-2">
-
-      <button
-        *ngIf="sessionScoped"
-        type="button"
-        (click)="showAddForm()"
-        class="btn text-white bg-blue-700 hover:bg-white hover:text-blue-700 outline outline-1 outline-blue-700 transition-all duration-300"
-      >
-        <i class="fas fa-plus"></i>
-        Ajouter
-      </button>
-      <button
-            type="button"
-            (click)="exportExcel()"
-            [disabled]="exporting"
-            class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
-          >
-            <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
-            <i class="fas fa-file-excel" *ngIf="!exporting"></i>
-            Exporter
-          </button>
-    </div>
+      <div class="flex gap-2">
+        <button
+          *ngIf="sessionScoped"
+          type="button"
+          (click)="showAddForm()"
+          class="btn text-white bg-blue-700 hover:bg-white hover:text-blue-700 outline outline-1 outline-blue-700 transition-all duration-300"
+        >
+          <i class="fas fa-plus"></i> Ajouter
+        </button>
+        <button
+          type="button"
+          (click)="exportExcel()"
+          [disabled]="exporting"
+          class="btn text-green-700 bg-white outline outline-1 outline-green-700 hover:bg-green-700 hover:text-white transition-all duration-300"
+        >
+          <i class="fas fa-spinner fa-spin" *ngIf="exporting"></i>
+          <i class="fas fa-file-excel" *ngIf="!exporting"></i>
+          Exporter
+        </button>
+      </div>
     </div>
 
-    <!-- ===================== Filtres (automatiques, pas de bouton) ===================== -->
+    <!-- Filtres -->
     <div class="card custom-width p-4 mb-3">
-
-      <!-- Vue "Session active" mais aucune session marquée en cours -->
       <div *ngIf="sessionScoped && !activeSession" class="text-sm text-red-600 mb-3">
         <i class="fas fa-exclamation-triangle mr-1"></i>
         Aucune session n'est actuellement en cours.
       </div>
-
       <div class="flex flex-wrap items-center gap-3">
-
         <!-- Département -->
         <div class="search-combo-wrap">
           <input
@@ -61,8 +55,7 @@
             </li>
           </ul>
         </div>
-
-        <!-- Commune (dépend du département) -->
+        <!-- Commune -->
         <div class="search-combo-wrap">
           <input
             type="text"
@@ -82,14 +75,12 @@
             </li>
           </ul>
         </div>
-
         <!-- Années -->
         <select [(ngModel)]="searchFilters.annee" (change)="onSimpleSelectChange()" class="select-filter">
           <option value="">Années</option>
           <option *ngFor="let y of years" [value]="y">{{ y }}</option>
         </select>
-
-        <!-- Sessions : masqué en vue "Session active", déjà verrouillée dessus -->
+        <!-- Sessions -->
         <div class="search-combo-wrap" *ngIf="!sessionScoped">
           <input
             type="text"
@@ -111,7 +102,7 @@
       </div>
     </div>
 
-    <!-- ===================== Tableau ===================== -->
+    <!-- Tableau -->
     <div class="card custom-width">
       <div class="flex justify-between items-center flex-wrap gap-2 px-4 pt-4">
         <p class="font-semibold text-gray-700">Liste des demandes d'aide technique de mobilité</p>
@@ -126,7 +117,6 @@
               class="input-style !pl-9"
             />
           </div>
-          
         </div>
       </div>
 
@@ -175,7 +165,7 @@
   ></button>
 </ng-template>
 
-<!-- Modal "Voir détails" -->
+<!-- Modal Détails -->
 <div class="modal self-center" data-modal="true" [id]="viewDetailsId">
   <app-modal title="Détails de la demande d'aide technique de mobilité">
     <div class="modal-body p-5 overflow-auto max-h-[70vh]" *ngIf="viewTarget">
@@ -203,7 +193,7 @@
   </app-modal>
 </div>
 
-<!-- ============ VUE FORMULAIRE PLEIN ÉCRAN (Modification) ============ -->
+<!-- ============ VUE FORMULAIRE PLEIN ÉCRAN ============ -->
 <app-admin-layout *ngIf="showForm">
   <div>
     <div class="flex items-center gap-3 mb-4">
@@ -219,11 +209,11 @@
 
     <div class="card p-6">
       <h1 class="font-bold text-lg text-gray-900 mb-4">
-        Enregistrement d'une demande d'aide technique de mobilité
+        {{ editMode ? 'Modification' : 'Enregistrement' }} d'une demande d'aide technique de mobilité
       </h1>
 
-      <!-- Identité du demandeur : lecture seule, vient de la relation "personne" -->
-      <div class="text-sm text-gray-700 space-y-1 mb-5" *ngIf="editMode">
+      <!-- Identité du demandeur en lecture seule (modification) -->
+      <div class="text-sm text-gray-700 space-y-1 mb-5" *ngIf="editMode && currentItem.personne_id">
         <p><span class="font-semibold">Demandeur :</span> {{ getDemandeurNom(currentItem) }}</p>
         <p><span class="font-semibold">Date de Naissance :</span> {{ formatDisplayDate(currentItem.personne?.date_naissance) }}</p>
         <p><span class="font-semibold">Sexe :</span> {{ currentItem.personne?.sexe || '-' }}</p>
@@ -232,7 +222,31 @@
       <form #f="ngForm" validateForm [onValidSubmit]="onSubmit.bind(this)">
         <div class="space-y-4 gap-4 max-w-3xl">
 
-          <!-- Localisation en cascade : Département -> Commune -> GUPS -->
+          <!-- ⭐ DEMANDEUR : visible en ajout seulement -->
+          <div *ngIf="!editMode" class="field mb-4">
+            <label class="font-semibold">Demandeur</label>
+            <div class="mt-1 search-combo-wrap">
+              <input
+                type="text"
+                class="input-style"
+                placeholder="Rechercher un demandeur (nom, NPI)..."
+                [(ngModel)]="personnesSearch"
+                name="personne_search"
+                (input)="onPersonneInput(personnesSearch)"
+                (focus)="onPersonneFocus()"
+                (blur)="onPersonneBlur()"
+              />
+              <i class="fas fa-times clear-icon" *ngIf="currentItem.personne_id" (mousedown)="clearPersonne()"></i>
+              <ul class="search-dropdown" *ngIf="personnesOpen">
+                <li *ngIf="personnesFiltered.length === 0" class="empty">Aucun demandeur trouvé</li>
+                <li *ngFor="let p of personnesFiltered" (mousedown)="selectPersonne(p)">
+                  {{ p.nomprenoms }} <span class="text-gray-400 text-xs" *ngIf="p.npi">(NPI: {{ p.npi }})</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Localisation -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="field">
               <label class="font-semibold">Département</label>
@@ -336,8 +350,7 @@
     <div class="modal-footer p-5 border-t border-gray-200">
       <div class="flex justify-end gap-4">
         <button type="button" class="btn text-white bg-gray-800 hover:bg-white hover:text-gray-800 outline outline-1 hover:outline-gray-800 transition-all duration-300" data-modal-dismiss="true">
-          <i class="fas fa-times mr-2"></i>
-          Annuler
+          <i class="fas fa-times mr-2"></i> Annuler
         </button>
         <button
           type="button"
@@ -345,8 +358,7 @@
           class="btn text-white bg-red-800 hover:bg-white hover:text-red-800 outline outline-1 hover:outline-red-800 transition-all duration-300"
           (click)="deleteItem(currentItem)"
         >
-          <i class="fas fa-trash mr-2"></i>
-          Supprimer
+          <i class="fas fa-trash mr-2"></i> Supprimer
         </button>
       </div>
     </div>

@@ -77,6 +77,7 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
   viewDetailsId: string = 'view_cartes';
   override formData: boolean = true;
 
+  protected defaultIncludes = ['personne'];
   protected apiHttp = inject(HttpClient);
   protected activatedRoute = inject(ActivatedRoute);
 
