@@ -5,7 +5,7 @@ import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@app/environments/environment';
-
+import { SEARCH_DEBOUNCE_MS } from '@app/cores/constants/search.constants';
 export interface EtudiantHandicap {
   id: number;
   npi: string;
@@ -415,12 +415,11 @@ export class EtudiantshandsComponent extends AbstractCrudComponent<EtudiantHandi
   onTableSearch(term: string): void {
     clearTimeout(this.searchDebounce);
     this.searchDebounce = setTimeout(() => {
-      this.searchFilters.search = term;
       this.setOrDeleteFilter('search', (term || '').trim());
       this.data = [];
       this.loadData();
-    }, 350);
-  }
+    }, SEARCH_DEBOUNCE_MS);  // au lieu de 350
+}
 
   // ===================== Vue liste / formulaire plein écran =====================
   override showAddForm(): void {

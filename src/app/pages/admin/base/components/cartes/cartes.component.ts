@@ -6,6 +6,7 @@ import { Column } from '@app/shared/components/forms/data-table/data-table.compo
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@app/environments/environment';
 import { Subscription } from 'rxjs';
+import { SEARCH_DEBOUNCE_MS } from '@app/cores/constants/search.constants';
 
 // ⚠️ La route réelle est "carte_egalites" (celle vue dans phpMyAdmin / utilisée
 // dès le départ). "demande_cartes" n'existe pas côté backend, d'où l'erreur
@@ -476,9 +477,8 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
       this.setOrDeleteFilter('search', (term || '').trim());
       this.data = [];
       this.loadData();
-    }, 350);
-  }
-
+    }, SEARCH_DEBOUNCE_MS);  // au lieu de 350
+}
   // ===================== Vue liste / formulaire plein écran =====================
   override showAddForm(): void {
     super.showAddForm();
@@ -535,11 +535,15 @@ export class CartesComponent extends AbstractCrudComponent<CarteEgalite> impleme
     }
   }
 
+  // Passe par /files/{path} (voir web.php) et non /storage/{path} : la route
+  // /storage/ dépend du lien symbolique storage:link, qui n'est pas suivi par
+  // le serveur intégré `php artisan serve` (→ 403 Forbidden même après avoir
+  // exécuté la commande). /files/ lit directement le fichier sur le disque.
   fileUrl(path: string | null | undefined): string | null {
     if (!path || typeof path !== 'string') return null;
     if (path.startsWith('http')) return path;
     const base = environment.URL_API.replace(/\/api\/?$/, '');
-    return `${base}/storage/${path}`;
+    return `${base}/files/${path.replace(/^\/?storage\//, '')}`;
   }
 
   // Lit le token depuis le cookie `indicateurs_token` (c'est là que le projet

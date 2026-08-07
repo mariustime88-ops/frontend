@@ -5,7 +5,7 @@ import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@app/environments/environment';
-
+import { SEARCH_DEBOUNCE_MS } from '@app/cores/constants/search.constants';
 // ⚠️ Interface calquée sur la table `structures` vue dans phpMyAdmin (id, denomination,
 // annee_creation, numero_structure, numero_promoteur, nomprenoms, effectif_total,
 // nombre_fille, nombre_garcon, nombre_apprenants, nombre_encadreurs, pourcentage_enfants,
@@ -394,8 +394,8 @@ export class EtablissementsComponent extends AbstractCrudComponent<Structure> im
       this.setOrDeleteFilter('search', (term || '').trim());
       this.data = [];
       this.loadData();
-    }, 350);
-  }
+    }, SEARCH_DEBOUNCE_MS);  // au lieu de 350
+}
 
   // ===================== Helpers d'affichage =====================
 
@@ -525,13 +525,18 @@ export class EtablissementsComponent extends AbstractCrudComponent<Structure> im
   }
 
   // ===================== Export =====================
-  exportExcel(): void {
+  private readonly EXPORT_EXCLUDED_KEYS = ['total', 'page', 'totalPages', 'per_page', 'limit', 'meta', 'count'];
+
+exportExcel(): void {
     if (this.exporting) return;
     this.exporting = true;
 
     const params = new URLSearchParams();
     Object.entries(this.filter).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') params.set(key, String(value));
+      if (this.EXPORT_EXCLUDED_KEYS.includes(key)) return;
+      if (value !== null && value !== undefined && value !== '' && typeof value !== 'object') {
+        params.set(key, String(value));
+      }
     });
 
     const url = `${environment.URL_API}/structures/export?${params.toString()}`;
@@ -553,5 +558,4 @@ export class EtablissementsComponent extends AbstractCrudComponent<Structure> im
         this.messageService.add({ severity: 'error', summary: 'Erreur', detail: "Impossible d'exporter la liste." });
       },
     });
-  }
-}
+}}

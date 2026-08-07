@@ -361,10 +361,18 @@
           </div>
 
           <div class="field max-w-md">
-            <label class="font-semibold">Montant Sollicité</label>
-            <input pInputText type="number" [(ngModel)]="currentItem.montant" name="montant" class="input-style" />
-          </div>
+  <label class="font-semibold">Montant Sollicité</label>
+  <input pInputText type="number" [(ngModel)]="currentItem.montant" name="montant" class="input-style" />
+</div>
 
+<div class="field max-w-md">
+  <label class="font-semibold">Statut</label>
+  <select [(ngModel)]="currentItem.statut" name="statut" class="input-style">
+    <option value="En attente">En attente</option>
+    <option value="Approuvé">Approuvé</option>
+    <option value="Rejeté">Rejeté</option>
+  </select>
+</div>
           <!-- Pièces jointes -->
           <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
             <h3 class="font-semibold text-gray-800 text-sm">Pièces jointes (fichier : pdf)</h3>

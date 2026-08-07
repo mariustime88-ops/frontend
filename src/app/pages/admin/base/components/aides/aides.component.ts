@@ -5,7 +5,7 @@ import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@app/environments/environment';
-
+import { SEARCH_DEBOUNCE_MS } from '@app/cores/constants/search.constants';
 export interface AideTechnique {
   id: number;
   materiel?: string | null;
@@ -359,9 +359,8 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
       this.setOrDeleteFilter('search', (term || '').trim());
       this.data = [];
       this.loadData();
-    }, 350);
-  }
-
+    }, SEARCH_DEBOUNCE_MS);  // au lieu de 350
+}
   // ===================== Demandeur (personne) =====================
   loadPersonnes() {
     this.resourceService.loadResource<any>('personnes', { params: { all: '1' } })
@@ -553,23 +552,31 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
     }
   }
 
-  exportExcel(): void {
+ private readonly EXPORT_EXCLUDED_KEYS = ['total', 'page', 'totalPages', 'per_page', 'limit', 'meta', 'count'];
+
+exportExcel(): void {
     if (this.exporting) return;
     this.exporting = true;
+
     const params = new URLSearchParams();
     Object.entries(this.filter).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') params.set(key, String(value));
+      if (this.EXPORT_EXCLUDED_KEYS.includes(key)) return;
+      if (value !== null && value !== undefined && value !== '' && typeof value !== 'object') {
+        params.set(key, String(value));
+      }
     });
+
     const url = `${environment.URL_API}/aide_techniques/export?${params.toString()}`;
     const token = this.getTokenFromCookie();
     const headers: { [header: string]: string } = token ? { Authorization: `Bearer ${token}` } : {};
+
     this.apiHttp.get(url, { responseType: 'blob' as const, headers }).subscribe({
       next: (blob: Blob) => {
         this.exporting = false;
         const link = document.createElement('a');
         const objectUrl = window.URL.createObjectURL(blob);
         link.href = objectUrl;
-        link.download = `aide_techniques_mobilite_${new Date().getTime()}.xlsx`;
+        link.download = `aide_techniques_${new Date().getTime()}.xlsx`;
         link.click();
         window.URL.revokeObjectURL(objectUrl);
       },
@@ -578,5 +585,5 @@ export class AidesComponent extends AbstractCrudComponent<AideTechnique> impleme
         this.messageService.add({ severity: 'error', summary: 'Erreur', detail: "Impossible d'exporter la liste." });
       },
     });
-  }
+}
 }

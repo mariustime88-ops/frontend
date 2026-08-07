@@ -5,7 +5,7 @@ import { Column } from '@app/shared/components/forms/data-table/data-table.compo
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { environment } from '@app/environments/environment';
-
+import { SEARCH_DEBOUNCE_MS } from '@app/cores/constants/search.constants';
 export interface DemandeInstallation {
   id: number;
   annee_enreg: number | null;
@@ -200,13 +200,11 @@ sessionsList: any[] = [];
   onTableSearch(term: string): void {
     clearTimeout(this.searchDebounce);
     this.searchDebounce = setTimeout(() => {
-      this.searchFilters.search = term;
       this.setOrDeleteFilter('search', (term || '').trim());
-      this.filter.page = 1;
       this.data = [];
       this.loadData();
-    }, 350);
-  }
+    }, SEARCH_DEBOUNCE_MS);  // au lieu de 350
+}
 
   private buildYearsRange(): void {
     const currentYear = new Date().getFullYear();

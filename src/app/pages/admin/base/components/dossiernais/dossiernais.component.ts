@@ -5,7 +5,7 @@ import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@app/environments/environment';
-
+import { SEARCH_DEBOUNCE_MS } from '@app/cores/constants/search.constants';
 // ⚠️ Interface calquée sur la table `dossier_triples` vue dans phpMyAdmin.
 // Les 3 blocs "Enfant 1/2/3" (nom, sexe, fiche de naissance) sont saisis séparément
 // dans le formulaire puis regroupés en `nom_prenoms_enfants` / `sexe_enfants`
@@ -479,8 +479,8 @@ export class DossiernaisComponent extends AbstractCrudComponent<DossierTriple> i
       this.setOrDeleteFilter('search', (term || '').trim());
       this.data = [];
       this.loadData();
-    }, 350);
-  }
+    }, SEARCH_DEBOUNCE_MS);  // au lieu de 350
+}
 
   // ===================== Badges =====================
   private decisionBadge(avis: any): string {
@@ -677,13 +677,18 @@ export class DossiernaisComponent extends AbstractCrudComponent<DossierTriple> i
   }
 
   // ===================== Export =====================
-  exportExcel(): void {
+  private readonly EXPORT_EXCLUDED_KEYS = ['total', 'page', 'totalPages', 'per_page', 'limit', 'meta', 'count'];
+
+exportExcel(): void {
     if (this.exporting) return;
     this.exporting = true;
 
     const params = new URLSearchParams();
     Object.entries(this.filter).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') params.set(key, String(value));
+      if (this.EXPORT_EXCLUDED_KEYS.includes(key)) return;
+      if (value !== null && value !== undefined && value !== '' && typeof value !== 'object') {
+        params.set(key, String(value));
+      }
     });
 
     const url = `${environment.URL_API}/dossier_triples/export?${params.toString()}`;
@@ -705,5 +710,4 @@ export class DossiernaisComponent extends AbstractCrudComponent<DossierTriple> i
         this.messageService.add({ severity: 'error', summary: 'Erreur', detail: "Impossible d'exporter la liste." });
       },
     });
-  }
-}
+}}

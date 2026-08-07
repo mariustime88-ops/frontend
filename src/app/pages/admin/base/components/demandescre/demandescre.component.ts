@@ -5,7 +5,7 @@ import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@app/environments/environment';
-
+import { SEARCH_DEBOUNCE_MS } from '@app/cores/constants/search.constants';
 export interface DemandeCredit {
   id: number;
   domaine_activite?: string | null;
@@ -394,8 +394,8 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
       this.setOrDeleteFilter('search', (term || '').trim());
       this.data = [];
       this.loadData();
-    }, 350);
-  }
+    }, SEARCH_DEBOUNCE_MS);  // au lieu de 350
+}
 
   private statutBadge(statut: any): string {
     const s = (statut || '').toString().toLowerCase();
@@ -552,7 +552,7 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
 
   private buildFormData(): FormData {
     const formData = new FormData();
-    const simpleFields = ['domaine_activite', 'objectif', 'montant', 'denomination', 'departement_id', 'commune_id', 'gups_id', 'personne_id'];
+const simpleFields = ['domaine_activite', 'objectif', 'montant', 'denomination', 'statut', 'departement_id', 'commune_id', 'gups_id', 'personne_id'];
     simpleFields.forEach((key) => {
       const val = (this.currentItem as any)[key];
       if (val !== null && val !== undefined) formData.append(key, val);
@@ -588,16 +588,24 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
     }
   }
 
-  exportExcel(): void {
+  private readonly EXPORT_EXCLUDED_KEYS = ['total', 'page', 'totalPages', 'per_page', 'limit', 'meta', 'count'];
+
+exportExcel(): void {
     if (this.exporting) return;
     this.exporting = true;
+
     const params = new URLSearchParams();
     Object.entries(this.filter).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') params.set(key, String(value));
+      if (this.EXPORT_EXCLUDED_KEYS.includes(key)) return;
+      if (value !== null && value !== undefined && value !== '' && typeof value !== 'object') {
+        params.set(key, String(value));
+      }
     });
+
     const url = `${environment.URL_API}/demande_credits/export?${params.toString()}`;
     const token = this.getTokenFromCookie();
     const headers: { [header: string]: string } = token ? { Authorization: `Bearer ${token}` } : {};
+
     this.apiHttp.get(url, { responseType: 'blob' as const, headers }).subscribe({
       next: (blob: Blob) => {
         this.exporting = false;
@@ -613,5 +621,4 @@ export class DemandescreComponent extends AbstractCrudComponent<DemandeCredit> i
         this.messageService.add({ severity: 'error', summary: 'Erreur', detail: "Impossible d'exporter la liste." });
       },
     });
-  }
-}
+}}

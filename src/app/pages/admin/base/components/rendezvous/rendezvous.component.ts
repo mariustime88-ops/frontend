@@ -5,7 +5,7 @@ import { CrudImports } from '@app/cores/utils/crud.imports';
 import { Column } from '@app/shared/components/forms/data-table/data-table.component';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@app/environments/environment';
-
+import { SEARCH_DEBOUNCE_MS } from '@app/cores/constants/search.constants';
 // ⚠️ Interface calquée sur la table `rendez_vous` vue dans phpMyAdmin
 // (id, nomprenoms, contact, statut, objet, date_seance, departement_id, gups_id,
 // created_at, updated_at). Contrairement à demande_credits / aide_techniques, il n'y
@@ -348,8 +348,8 @@ export class RendezvousComponent extends AbstractCrudComponent<RendezVous> imple
       this.setOrDeleteFilter('search', (term || '').trim());
       this.data = [];
       this.loadData();
-    }, 350);
-  }
+    }, SEARCH_DEBOUNCE_MS);  // au lieu de 350
+}
 
   // ===================== Badges =====================
   // ⚠️ Mapping 0/1 supposé (En attente / Traité) — dis-moi le vrai sens de `statut`
@@ -465,13 +465,18 @@ export class RendezvousComponent extends AbstractCrudComponent<RendezVous> imple
   }
 
   // ===================== Export =====================
-  exportExcel(): void {
+ private readonly EXPORT_EXCLUDED_KEYS = ['total', 'page', 'totalPages', 'per_page', 'limit', 'meta', 'count'];
+
+exportExcel(): void {
     if (this.exporting) return;
     this.exporting = true;
 
     const params = new URLSearchParams();
     Object.entries(this.filter).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') params.set(key, String(value));
+      if (this.EXPORT_EXCLUDED_KEYS.includes(key)) return;
+      if (value !== null && value !== undefined && value !== '' && typeof value !== 'object') {
+        params.set(key, String(value));
+      }
     });
 
     const url = `${environment.URL_API}/rendez_vous/export?${params.toString()}`;
@@ -484,7 +489,7 @@ export class RendezvousComponent extends AbstractCrudComponent<RendezVous> imple
         const link = document.createElement('a');
         const objectUrl = window.URL.createObjectURL(blob);
         link.href = objectUrl;
-        link.download = `rendez_vous_${new Date().getTime()}.xlsx`;
+        link.download = `demandes_rendezvous_${new Date().getTime()}.xlsx`;
         link.click();
         window.URL.revokeObjectURL(objectUrl);
       },
@@ -493,5 +498,5 @@ export class RendezvousComponent extends AbstractCrudComponent<RendezVous> imple
         this.messageService.add({ severity: 'error', summary: 'Erreur', detail: "Impossible d'exporter la liste." });
       },
     });
-  }
+}
 }
